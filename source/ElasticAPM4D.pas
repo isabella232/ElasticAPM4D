@@ -59,7 +59,8 @@ type
     class function StartTransaction(AActionName: string; AContext: TWebContext)
       : TElasticAPM4DTransaction; overload;
 
-    class procedure EndTransaction(const ARESTClient: TRESTClient; const AResponse: IRESTResponse); overload;
+    class procedure EndTransaction(const ARESTClient: TRESTClient; const AResponse: IRESTResponse;
+      const AHttpMethod: string); overload;
     class procedure EndTransaction(const AContext: TWebContext); overload;
 {$ENDIF}
   end;
@@ -102,7 +103,7 @@ end;
 class function TElasticAPM4D.Header: string;
 begin
   if not Assigned(FPackage) then
-    raise EElasticAPM4DException.Create('Transaction not found');
+    Exit('');
 
   Result := FPackage.Header;
 end;
@@ -164,7 +165,7 @@ end;
 class procedure TElasticAPM4D.EndTransaction(const AResult: string);
 begin
   if not Assigned(FPackage) then
-    exit;
+    Exit;
 
   FPackage.Transaction.Result := AResult;
   FPackage.Transaction.&End;
@@ -209,7 +210,7 @@ end;
 class procedure TElasticAPM4D.EndSpan(const AIdHttp: TIdCustomHTTP);
 begin
   if not FPackage.SpanIsOpen then
-    exit;
+    Exit;
   CurrentSpan.Context.http := TElasticAPM4DSpanContextHttp.Create;
   CurrentSpan.Context.http.method := AIdHttp.Request.method;
   CurrentSpan.Context.http.url := AIdHttp.Request.url;
@@ -220,7 +221,7 @@ end;
 class procedure TElasticAPM4D.EndSpan;
 begin
   if not FPackage.SpanIsOpen then
-    exit;
+    Exit;
 
   CurrentSpan.&End;
   FPackage.OpenSpanStack.Delete(Pred(FPackage.OpenSpanStack.Count));
@@ -262,9 +263,12 @@ begin
   LError.Exception.&type := E.ClassName;
   LError.Exception.message := E.message;
 
-  LError.Context.AutoCreatePage(AIdHttp);
-  LError.Context.AutoCreateResponse(AIdHttp);
-  LError.Context.AutoCreateRequest(AIdHttp);
+  if Assigned(AIdHttp) then
+  begin
+    LError.Context.AutoCreatePage(AIdHttp);
+    LError.Context.AutoCreateResponse(AIdHttp);
+    LError.Context.AutoCreateRequest(AIdHttp);
+  end;
 
   FPackage.ErrorList.Add(LError);
 end;
@@ -278,12 +282,14 @@ begin
     AActionName, AContext.Request.Headers['elastic-apm-traceparent']);
 end;
 
-class procedure TElasticAPM4D.EndTransaction(const ARESTClient: TRESTClient; const AResponse: IRESTResponse);
+class procedure TElasticAPM4D.EndTransaction(const ARESTClient: TRESTClient; const AResponse: IRESTResponse;
+  const AHttpMethod: string);
 var
   LError: TElasticAPM4DError;
 begin
   CurrentTransaction.Context.AutoConfigureContext(AResponse);
   CurrentTransaction.Context.Request.url.full := ARESTClient.url;
+  CurrentTransaction.Context.Request.method := AHttpMethod;
   if AResponse.HasError then
   begin
     LError := GetError;
