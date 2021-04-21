@@ -17,7 +17,7 @@ type
     procedure Add(ASpans: TList<TSpan>); overload;
     procedure Add(AMetadata: TMetadata); overload;
     procedure Add(ATransaction: TTransaction); overload;
-    procedure Add(AErro: TList<TError>); overload;
+    procedure Add(AErrors: TList<TError>); overload;
 
     function Get: Widestring;
   end;
@@ -44,13 +44,14 @@ begin
   end;
 end;
 
-procedure TndJson.Add(AErro: TList<TError>);
+procedure TndJson.Add(AErrors: TList<TError>);
 var
   LError: TError;
 begin
-  if not Assigned(AErro) then
+  if not Assigned(AErrors) then
     exit;
-  for LError in AErro.List do
+  for LError in AErrors.List do
+    if LError <> nil then
     FJson := FJson + sNDJsonSeparator + LError.ToJsonString;
 end;
 

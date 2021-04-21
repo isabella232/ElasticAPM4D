@@ -40,6 +40,9 @@ type
     class function CurrentSpan: TSpan;
     class procedure EndSpan; overload;
 
+    class function ExistsError(): Boolean;
+    class function LastError(): TError;
+    class procedure AddError(const AMessage: string); overload;
     class procedure AddError(AError: TError); overload;
     class procedure AddError(E: Exception); overload;
     class procedure AddError(E: EIdHTTPProtocolException); overload;
@@ -139,6 +142,13 @@ begin
   TSender.Instance.AddPackageToQueue(FPackage);
   FPackage := nil;
   end;
+
+class function TElasticAPM4D.ExistsError: Boolean;
+begin
+  if not Assigned(FPackage) then
+    Exit(False);
+
+  Result := (FPackage.ErrorList.Count > 0);
 end;
 
 class function TElasticAPM4D.ExistsTransaction: Boolean;
@@ -234,6 +244,26 @@ begin
   LError.Exception.message := E.ErrorMessage;
   LError.Exception.&type   := E.ClassName;
   FPackage.ErrorList.Add(LError)
+end;
+
+class procedure TElasticAPM4D.AddError(const AMessage: string);
+var
+  LError: TError;
+begin
+  if not Assigned(FPackage) then
+    Exit;
+
+  LError                   := GetError();
+  LError.Exception.&type   := 'TXT';
+  LError.Exception.message := AMessage;
+  FPackage.ErrorList.Add(LError);
+end;
+
+class function TElasticAPM4D.LastError: TError;
+begin
+  if not Assigned(FPackage) then
+    Exit(nil);
+  Result := FPackage.ErrorList.Last();
 end;
 
 class constructor TElasticAPM4D.Create;

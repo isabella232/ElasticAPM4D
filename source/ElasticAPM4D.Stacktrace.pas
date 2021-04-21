@@ -5,29 +5,29 @@ interface
 type
   TStacktrace = class
   private
-    FAbs_path: String;
-    FColno: integer;
-    FContext_line: String;
-    FFilename: String;
-    FFunction: String;
+    FAbs_path:      string;
+    FColno:         integer;
+    FContext_line:  string;
+    FFilename:      string;
+    FFunction:      string;
     FLibrary_frame: Boolean;
-    FLineno: integer;
-    FModule: String;
-    FPost_context: TArray<String>;
-    FPre_context: TArray<String>;
-    Fvars: TObject;
+    FLineno:        integer;
+    FModule:        string;
+    FPost_context:  TArray<string>;
+    FPre_context:   TArray<string>;
+    Fvars:          TObject;
   public
-    property Abs_path: String read FAbs_path write FAbs_path;
-    property Colno: integer read FColno write FColno;
-    property Context_line: String read FContext_line write FContext_line;
-    property Filename: String read FFilename write FFilename;
-    property &function: String read FFunction write FFunction;
-    property Library_frame: Boolean read FLibrary_frame write FLibrary_frame default false;
-    property Lineno: integer read FLineno write FLineno;
-    property Module: String read FModule write FModule;
-    property Post_context: TArray<String> read FPost_context write FPost_context;
-    property Pre_context: TArray<String> read FPre_context write FPre_context;
-    property Vars: TObject read Fvars write Fvars;
+    property abs_path: string read FAbs_path write FAbs_path;
+    property colno:    integer read FColno write FColno;
+    property context_line:  string read FContext_line write FContext_line;
+    property filename:      string read FFilename write FFilename;
+    property &function:     string read FFunction write FFunction;
+    property library_frame: Boolean read FLibrary_frame write FLibrary_frame default false;
+    property lineno:        integer read FLineno write FLineno;
+    property module:        string read FModule write FModule;
+    property post_context:  TArray<string> read FPost_context write FPost_context;
+    property pre_context:   TArray<string> read FPre_context write FPre_context;
+    property vars:          TObject read Fvars write Fvars;
   end;
 
 implementation

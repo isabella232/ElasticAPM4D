@@ -90,7 +90,9 @@ begin
     Result := GuidToString(Uid).ToLower;
     RemoveChars(Result);
     Exit;
-  end;
+  end
+  else
+    RaiseLastOSError();
 end;
 
 { TTimestampEpoch }
