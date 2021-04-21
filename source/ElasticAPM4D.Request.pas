@@ -2,6 +2,11 @@ unit ElasticAPM4D.Request;
 
 interface
 
+uses
+  System.Generics.Collections,
+  REST.Json.Types,
+  System.Json.Serializers;
+
 type
   TSocket = class
   private
@@ -33,22 +38,26 @@ type
     property Search: string read FSearch write FSearch;
   end;
 
+  TKeyValues = class(TDictionary<string, string>);
+
   TRequest = class
   private
     FBody: string;
-    Fcookies: TObject;
-    Fheaders: string;
-    FHttp_version: String;
-    FMethod: String;
-    FSocket: TSocket;
-    FUrl: TURL;
+    [JSONMarshalledAttribute(False)]
+    Fcookies: TKeyValues;
+    [JSONMarshalledAttribute(False)]
+    Fheaders:      TKeyValues;
+    FHttp_version: string;
+    FMethod:       string;
+    FSocket:       TSocket;
+    FUrl:          TURL;
   public
     constructor Create;
     destructor Destroy; override;
 
     property Body: string read FBody write FBody;
-    property Cookies: TObject read Fcookies write Fcookies;
-    property Headers: string read Fheaders write Fheaders;
+    property Cookies: TKeyValues read Fcookies write Fcookies;
+    property Headers: TKeyValues read Fheaders write Fheaders;
     property Http_version: string read FHttp_version write FHttp_version;
     property Method: string read FMethod write FMethod;
     property Socket: TSocket read FSocket;
@@ -74,6 +83,7 @@ begin
   FSocket.Free;
   if Assigned(Fcookies) then
     Fcookies.Free;
+  Fheaders.Free;
   inherited;
 end;
 

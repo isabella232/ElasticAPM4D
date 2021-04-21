@@ -21,6 +21,7 @@ type
     property Started: Integer read FStarted;
   end;
 
+  // https://github.com/elastic/apm-server/blob/v7.12.0/docs/spec/v2/transaction.json
   TTransaction = class
   private
     FStartDate: TDateTime;
@@ -118,8 +119,43 @@ begin
 end;
 
 function TTransaction.ToJsonString: string;
+var
+  key:                       string;
+  LJSONValue, Context, Tags: TJSONObject;
 begin
-  Result := format(sTransactionJsonId, [TJson.ObjectToJsonString(Self, [joIgnoreEmptyStrings])]);
+  if (Self.Context = nil) then
+    Exit(format(sTransactionJsonId, [TJson.ObjectToJsonString(Self, [joIgnoreEmptyStrings])]));
+
+  LJSONValue := TJson.ObjectToJsonObject(Self, [joIgnoreEmptyStrings]);
+  try
+    if Self.Context.HasTags() then
+    begin
+      Context := LJSONValue.FindValue('context') as TJSONObject;
+      Tags    := TJSONObject.Create;
+      // manually add dynamic data to the json: using TJsonStringDictionaryConverter, JsonReflectAttribute, JsonConverterAttribute etc didn't work or too cumbersome or resulted in empty strings etc
+      for key in Self.Context.Tags.Keys do
+        Tags.AddPair(key, Self.Context.Tags[key]);
+      Context.AddPair('tags', Tags);
+    end;
+
+    if (Self.Context.Request <> nil) and (Self.Context.Request.Headers <> nil) then
+    begin
+      Context := LJSONValue.FindValue('context.request') as TJSONObject;
+      Tags    := TJSONObject.Create;
+      for key in Self.Context.Request.Headers.Keys do
+        Tags.AddPair(key, Self.Context.Request.Headers[key]);
+      Context.AddPair('headers', Tags);
+
+      Tags := TJSONObject.Create;
+      for key in Self.Context.Request.Cookies.Keys do
+        Tags.AddPair(key, Self.Context.Request.Cookies[key]);
+      Context.AddPair('cookies', Tags);
+    end;
+
+    Result := format(sTransactionJsonId, [TJson.JsonEncode(LJSONValue)]);
+  finally
+    LJSONValue.Free;
+  end;
 end;
 
 end.

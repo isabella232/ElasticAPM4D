@@ -3,7 +3,13 @@ unit ElasticAPM4D.Context;
 interface
 
 uses
-  System.SysUtils, ElasticAPM4D.User, ElasticAPM4D.Request, ElasticAPM4D.Service;
+  Classes,
+  System.SysUtils,
+  System.Json,
+  REST.Json.Types,
+  ElasticAPM4D.User,
+  ElasticAPM4D.Request,
+  ElasticAPM4D.Service;
 
 type
   TPage = class
@@ -32,9 +38,11 @@ type
   private
     FPage: TPage;
     FResponse: TResponse;
-    FRequest: TRequest;
-    FService: TService;
-    FUser: TUser;
+    FRequest:  TRequest;
+    FUser:     TUser;
+    [JSONMarshalledAttribute(False)]
+    FTags: TKeyValues;
+    function GetTags: TKeyValues;
   public
     constructor Create; virtual;
     destructor Destroy; override;
@@ -44,6 +52,9 @@ type
     property Request: TRequest read FRequest write FRequest;
     property Page: TPage read FPage write FPage;
     property Response: TResponse read FResponse write FResponse;
+
+    property Tags: TKeyValues read GetTags;
+    function HasTags: Boolean;
   end;
 
 implementation
@@ -64,7 +75,20 @@ begin
     FResponse.Free;
   if Assigned(FRequest) then
     FRequest.Free;
+  FTags.Free;
   inherited;
+end;
+
+function TContext.GetTags: TKeyValues;
+begin
+  if FTags = nil then
+    FTags := TKeyValues.Create;
+  Result  := FTags;
+end;
+
+function TContext.HasTags: Boolean;
+begin
+  Result := (FTags <> nil) and (FTags.Count > 0);
 end;
 
 end.
