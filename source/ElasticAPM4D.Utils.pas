@@ -19,6 +19,8 @@ type
     class var FUserId: string;
     class var FUserName: string;
     class var FUserMail: string;
+    class var FEnvironment:   string;
+    class procedure SetEnvironment(const Value: string); static;
   public
     class function GetAppName: string; static;
     class function GetAppVersion: string; static;
@@ -41,6 +43,8 @@ type
     class procedure SetUserId(const Value: string); static;
     class procedure SetUserMail(const Value: string); static;
     class procedure SetUserName(const Value: string); static;
+
+    class property Environment: string read FEnvironment write SetEnvironment;
   end;
 
   TUUid = class
@@ -204,6 +208,11 @@ end;
 class procedure TConfig.SetDatabaseUser(const Value: string);
 begin
   FDatabaseUser := Value;
+end;
+
+class procedure TConfig.SetEnvironment(const Value: string);
+begin
+  FEnvironment := Value;
 end;
 
 class procedure TConfig.SetIsActive(const Value: Boolean);

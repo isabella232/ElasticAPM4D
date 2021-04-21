@@ -12,6 +12,8 @@ uses
   ElasticAPM4D.User,
   ElasticAPM4D.Span,
   ElasticAPM4D.Error,
+  ElasticAPM4D.MetricSet,
+  ElasticAPM4D.MetricSet.Defaults,
   Winapi.Windows,
   System.Math,
   Rest.Client,
@@ -50,6 +52,7 @@ type
     property User: TUser read FUser write FUser;
     property Header: string read GetHeader write SetHeader;
 
+    class function GetMetricsAsNdJson(): string;
   end;
 
   TSender = class(TThread)
@@ -152,6 +155,7 @@ var
 begin
   ndJson := TndJson.Create;
   try
+    FMetadata.Service.Environment := TConfig.Environment;
     ndJson.Add(FMetadata);
     ndJson.Add(FTransaction);
     ndJson.Add(FSpanList);
@@ -171,6 +175,29 @@ end;
 function TPackage.ExtractTraceId: string;
 begin
   Result := Copy(FHeader, 4, 32);
+end;
+
+class function TPackage.GetMetricsAsNdJson(): string;
+var
+  ndJson: TndJson;
+begin
+  if not TConfig.GetIsActive then
+    Exit;
+  ndJson := TndJson.Create;
+  try
+    ndJson.Add(FMetadata);
+
+    var
+    FMetricList := TObjectList<TBaseMetricSet>.Create();
+    var
+    metric := TMetricSet<TBaseMetric>.Create();
+    FMetricList.Add(metric);
+    ndJson.Add(FMetricList);
+
+    Result := ndJson.Get();
+  finally
+    ndJson.Free;
+  end;
 end;
 
 procedure TPackage.SetHeader(const Value: string);
@@ -280,6 +307,7 @@ begin
 
     ProcessConfigFetch();
     ProcessPackageList();
+    ProcessMetrics();
     ProcessSendList();
   end;
 end;
@@ -346,6 +374,15 @@ begin
     - transaction_max_spans: "500",
     - span_frames_min_duration: 5ms/s/m
   }
+end;
+
+procedure TSender.ProcessMetrics;
+begin
+  if MilliSecondsBetween(Now(), FLastMetric) < C_MetricInterval then
+    Exit;
+  FLastMetric := Now();
+
+  TSender.Instance.AddToSendQueue('', TPackage.GetMetricsAsNdJson());
 end;
 
 procedure TSender.ProcessPackageList();

@@ -4,7 +4,7 @@ interface
 
 uses
   System.classes, System.SysUtils, System.Generics.Collections,
-  ElasticAPM4D.Metadata, ElasticAPM4D.Transaction, ElasticAPM4D.Span, ElasticAPM4D.Error;
+  ElasticAPM4D.Metadata, ElasticAPM4D.Transaction, ElasticAPM4D.Span, ElasticAPM4D.Error, ElasticAPM4D.MetricSet;
 
 type
   TndJson = class
@@ -18,6 +18,7 @@ type
     procedure Add(AMetadata: TMetadata); overload;
     procedure Add(ATransaction: TTransaction); overload;
     procedure Add(AErrors: TList<TError>); overload;
+    procedure Add(AMetrics: TList<TBaseMetricSet>); overload;
 
     function Get: Widestring;
   end;
@@ -52,7 +53,7 @@ begin
     exit;
   for LError in AErrors.List do
     if LError <> nil then
-    FJson := FJson + sNDJsonSeparator + LError.ToJsonString;
+      FJson := FJson + sNDJsonSeparator + LError.ToJsonString;
 end;
 
 procedure TndJson.Add(ATransaction: TTransaction);
@@ -63,6 +64,17 @@ end;
 function TndJson.Get: Widestring;
 begin
   Result := FJson;
+end;
+
+procedure TndJson.Add(AMetrics: TList<TBaseMetricSet>);
+var
+  LMetric: TBaseMetricSet;
+begin
+  if not Assigned(AMetrics) then
+    exit;
+  for LMetric in AMetrics.List do
+    if LMetric <> nil then
+      FJson := FJson + sNDJsonSeparator + LMetric.ToJsonString;
 end;
 
 end.

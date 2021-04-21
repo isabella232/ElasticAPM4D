@@ -3,16 +3,17 @@ unit ElasticAPM4D.MetricSet;
 interface
 
 type
-  TSamples = class
+  TSample = class
   private
     Fvalue: Double;
   public
+    constructor Create(const aValue: Double);
+
     property value: Double read Fvalue write Fvalue;
   end;
 
-  TMetricSet<T: TSamples, constructor> = class
+  TBaseMetricSet = class
   private
-    Fsamples: T;
     Ftimestamp: Int64;
   public
     constructor Create; virtual;
@@ -21,20 +22,36 @@ type
     function ToJsonString: string;
 
     property Timestamp: Int64 read Ftimestamp write Ftimestamp;
+  end;
+
+  TBaseSampleSet = class
+  end;
+
+  // https://github.com/elastic/apm-server/blob/v7.12.0/docs/spec/v2/metricset.json
+  TMetricSet<T: TBaseSampleSet, constructor> = class(TBaseMetricSet)
+  private
+    Fsamples: T;
+  public
+    constructor Create; override;
+    destructor Destroy; override;
+
     property Samples: T read Fsamples write Fsamples;
   end;
 
 implementation
 
-Uses
-  System.SysUtils, Rest.Json, ElasticAPM4D.Utils, ElasticAPM4D.Resources;
+uses
+  System.SysUtils,
+  Rest.Json,
+  ElasticAPM4D.Utils,
+  ElasticAPM4D.Resources;
 
 { TMetricSet<T> }
 
 constructor TMetricSet<T>.Create;
 begin
+  inherited;
   Fsamples := T.Create;
-  Ftimestamp := TTimestampEpoch.Get(now);
 end;
 
 destructor TMetricSet<T>.Destroy;
@@ -43,9 +60,30 @@ begin
   inherited;
 end;
 
-function TMetricSet<T>.ToJsonString: string;
+{ TBaseMetricSet }
+
+constructor TBaseMetricSet.Create;
 begin
+  Ftimestamp := TTimestampEpoch.Get(now);
+end;
+
+destructor TBaseMetricSet.Destroy;
+begin
+  inherited;
+end;
+
+function TBaseMetricSet.ToJsonString: string;
+begin
+  TJson.ObjectToJsonString(self);
+
   result := format(smetricSetJsonId, [TJson.ObjectToJsonString(self)]);
+end;
+
+{ TSample }
+
+constructor TSample.Create(const aValue: Double);
+begin
+  Fvalue := aValue;
 end;
 
 end.
