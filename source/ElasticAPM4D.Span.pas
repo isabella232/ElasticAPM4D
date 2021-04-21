@@ -16,17 +16,14 @@ type
     FType:          string;
     FUser:          string;
     Flink:          string;
-    FInstance: String;
-    FStatement: String;
-    FType: String;
-    FUser: String;
-    Flink: string;
+    Frows_affected: integer;
   public
     property instance:      string read FInstance write FInstance; // Instance name of the database
     property link:          string read Flink write Flink; // Link to the database server
     property statement:     string read FStatement write FStatement; // Statement of the recorded database event, e.g. query
     property &type:         string read FType write FType; // Type of the recorded database event., e.g. sql, cassandra, hbase, redis
     property user:          string read FUser write FUser; // User is the username with which the database is accessed
+    property rows_affected: integer read Frows_affected write Frows_affected;
   end;
 
   THttp = class
@@ -66,6 +63,7 @@ type
     property http: THttp read FHttp write FHttp;
   end;
 
+  // https://github.com/elastic/apm-server/blob/v7.12.0/docs/spec/v2/span.json
   TSpan = class
   private
     FStartDate:      TDateTime;

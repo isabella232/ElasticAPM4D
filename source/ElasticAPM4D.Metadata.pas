@@ -41,6 +41,7 @@ type
     property &Platform: string read FPlatform;
   end;
 
+  // https://github.com/elastic/apm-server/blob/v7.12.0/docs/spec/v2/metadata.json
   TMetadata = class
   private
     FProcess: TProcess;

@@ -43,7 +43,6 @@ type
     FTrace_id:       string;
     FTransaction_id: string;
     FTimestamp:      Int64;
-    Fcontext:        TContext;
   public
     constructor Create(const ATraceId, ATransactionId, AParentId: string);
     destructor Destroy; override;

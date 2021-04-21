@@ -24,7 +24,8 @@ uses
 type
   TPackage = class
   private
-    FMetadata:      TMetadata;
+    class var FMetadata: TMetadata;
+  private
     FTransaction:   TTransaction;
     FSpanList:      TObjectList<TSpan>;
     FErrorList:     TObjectList<TError>;
@@ -35,7 +36,13 @@ type
     function ExtractParentID: string;
     function GetHeader: string;
     procedure SetHeader(const Value: string);
+    function GetSpanList: TObjectList<TSpan>;
+    function GetOpenSpanStack: TList;
+    function GetErrorList: TObjectList<TError>;
   public
+    class constructor Create;
+    class destructor Destroy;
+
     constructor Create;
     destructor Destroy; override;
 
@@ -44,11 +51,11 @@ type
     function SpanIsOpen: Boolean;
     function CurrentSpan: TSpan;
 
-    property Metadata: TMetadata read FMetadata write FMetadata;
+    class property Metadata: TMetadata read FMetadata;
     property Transaction: TTransaction read FTransaction write FTransaction;
-    property SpanList: TObjectList<TSpan> read FSpanList write FSpanList;
-    property ErrorList: TObjectList<TError> read FErrorList write FErrorList;
-    property OpenSpanStack: TList read FOpenSpanStack write FOpenSpanStack;
+    property SpanList: TObjectList<TSpan> read GetSpanList write FSpanList;
+    property ErrorList: TObjectList<TError> read GetErrorList write FErrorList;
+    property OpenSpanStack: TList read GetOpenSpanStack write FOpenSpanStack;
     property User: TUser read FUser write FUser;
     property Header: string read GetHeader write SetHeader;
 
@@ -104,13 +111,14 @@ uses
 
 constructor TPackage.Create;
 begin
-  FMetadata := TMetadata.Create;
+  // create minimal objects
   FTransaction := TTransaction.Create;
-  FSpanList := TObjectList<TSpan>.Create;
-  FOpenSpanStack := TList.Create;
-  FErrorList := TObjectList<TError>.Create;
-  FUser := TUser.Create;
-  FHeader := '';
+  FHeader      := '';
+end;
+
+class constructor TPackage.Create;
+begin
+  FMetadata := TMetadata.Create; // this one is slow, so init only once!
 end;
 
 function TPackage.CurrentSpan: TSpan;
@@ -118,13 +126,17 @@ begin
   if not SpanIsOpen then
     Exit(nil);
 
-  Result := FOpenSpanStack.Items[Pred(FOpenSpanStack.Count)];
+  Result := OpenSpanStack.Items[Pred(FOpenSpanStack.Count)];
+end;
+
+class destructor TPackage.Destroy;
+begin
+  FMetadata.Free;
 end;
 
 destructor TPackage.Destroy;
 begin
   FTransaction.Free;
-  FMetadata.Free;
   FreeAndNil(FSpanList);
   FreeAndNil(FErrorList);
   FOpenSpanStack.Free;
@@ -134,7 +146,7 @@ end;
 
 function TPackage.SpanIsOpen: Boolean;
 begin
-  Result := FOpenSpanStack.Count > 0;
+  Result := (FOpenSpanStack <> nil) and (FOpenSpanStack.Count > 0);
 end;
 
 function TPackage.GetHeader: string;
@@ -165,6 +177,27 @@ begin
   finally
     ndJson.Free;
   end;
+end;
+
+function TPackage.GetErrorList: TObjectList<TError>;
+begin
+  if FErrorList = nil then
+    FErrorList := TObjectList<TError>.Create();
+  Result       := FErrorList;
+end;
+
+function TPackage.GetOpenSpanStack: TList;
+begin
+  if FOpenSpanStack = nil then
+    FOpenSpanStack := TList.Create;
+  Result           := FOpenSpanStack;
+end;
+
+function TPackage.GetSpanList: TObjectList<TSpan>;
+begin
+  if FSpanList = nil then
+    FSpanList := TObjectList<TSpan>.Create;
+  Result      := FSpanList;
 end;
 
 function TPackage.ExtractParentID: string;
@@ -399,10 +432,10 @@ begin
       Clear();
     finally
       FPackageQueue.UnlockList();
-end;
+    end;
 
   for Package in packages do
-begin
+  begin
     if TConfig.GetIsActive then
       TSender.Instance.AddToSendQueue(Package.GetHeader(), Package.GetAsNdJson());
     // SendToElasticAPM(TConfig.GetUrlElasticAPMEvents, GetHeader, ndJson.Get);
@@ -415,7 +448,7 @@ procedure TSender.ProcessSendList;
 var
   data: TArray<TPair<string, string>>;
   item: TPair<string, string>;
-  begin
+begin
   with FSendQueue.LockList() do
     try
       if Count <= 0 then
@@ -425,7 +458,7 @@ var
       Clear();
     finally
       FSendQueue.UnlockList();
-  end;
+    end;
 
   for item in data do
     if TConfig.GetIsActive then

@@ -116,6 +116,7 @@ begin
 {$IFDEF VER320} 'Delphi 10.2 Tokyo'; {$ENDIF}
 {$IFDEF VER330} 'Delphi 10.3 Rio'; {$ENDIF}
 {$IFDEF VER331} 'Delphi 10.4 Sidney'; {$ENDIF}
+{$IF CompilerVersion > 33} 'Delphi 10.4+' {$ENDIF}
 end;
 
 { TRuntime }

@@ -48,7 +48,6 @@ type
     destructor Destroy; override;
 
     property User: TUser read FUser write FUser;
-    property Service: TService read FService write FService;
     property Request: TRequest read FRequest write FRequest;
     property Page: TPage read FPage write FPage;
     property Response: TResponse read FResponse write FResponse;
@@ -61,20 +60,15 @@ implementation
 
 constructor TContext.Create;
 begin
-  FService := TService.Create;
   FUser := TUser.Create;
 end;
 
 destructor TContext.Destroy;
 begin
-  FService.Free;
   FUser.Free;
-  if Assigned(FPage) then
-    FPage.Free;
-  if Assigned(FResponse) then
-    FResponse.Free;
-  if Assigned(FRequest) then
-    FRequest.Free;
+  FPage.Free;
+  FResponse.Free;
+  FRequest.Free;
   FTags.Free;
   inherited;
 end;

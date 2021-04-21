@@ -81,7 +81,6 @@ destructor TRequest.Destroy;
 begin
   FUrl.Free;
   FSocket.Free;
-  if Assigned(Fcookies) then
     Fcookies.Free;
   Fheaders.Free;
   inherited;

@@ -28,11 +28,12 @@ type
     class procedure Finalize;
     class procedure Initialize;
   protected
-    class var FRecording: Boolean;
+    class var FUser:      TUser;
+    class var FDataBase:  TDB;
     class function GetError: TError;
   public
     class procedure AddUser(AUserId, AUsername: string; AUserMail: string = ''); overload;
-    class procedure AddDataBase(ADbType, ADbUser: string);
+    class procedure AddDataBase(const ADbType { sql } , AInstance { servername } , ADbUser: string);
 
     class function HeaderKey: string;
     class function HeaderValue: string;
@@ -68,7 +69,8 @@ implementation
 { TElasticAPM4D }
 
 uses
-  ElasticAPM4D.Utils, ElasticAPM4D.Context;
+  ElasticAPM4D.Utils,
+  ElasticAPM4D.Context;
 
 class procedure TElasticAPM4D.AddUser(AUserId, AUsername, AUserMail: string);
 begin
@@ -79,12 +81,13 @@ begin
   FUser.email    := AUserMail;
 end;
 
-class procedure TElasticAPM4D.AddDataBase(ADbType, ADbUser: string);
+class procedure TElasticAPM4D.AddDataBase(const ADbType, AInstance, ADbUser: string);
 begin
   if not Assigned(FDataBase) then
     FDataBase := TDB.Create;
 
   FDataBase.&type    := ADbType;
+  FDataBase.Instance := AInstance;
   FDataBase.User     := ADbUser;
 end;
 
@@ -104,13 +107,16 @@ end;
 class function TElasticAPM4D.StartTransaction(const AType, AName, ATraceId: string): TTransaction;
 begin
   if ExistsTransaction then
-    EndTransaction('UnFineshed');
+    EndTransaction('UnFinished');
 
   FPackage := TPackage.Create;
   FPackage.Transaction.Start(AType, AName);
 
   if Assigned(FUser) then
   begin
+    if FPackage.Transaction.Context = nil then
+      FPackage.Transaction.Context := TContext.Create;
+
     FPackage.Transaction.Context.User.id       := FUser.id;
     FPackage.Transaction.Context.User.username := FUser.username;
     FPackage.Transaction.Context.User.email    := FUser.email;
