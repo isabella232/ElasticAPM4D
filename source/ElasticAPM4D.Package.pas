@@ -363,8 +363,10 @@ begin
 
       Result := True;
     except
+{$IFDEF Indy}
       on e: EIdHTTPProtocolException do
         OutputDebugString(pchar(e.ClassName + ': ' + e.ErrorCode.ToString + ': ' + e.ErrorMessage));
+{$ENDIF}
       on e: Exception do
         OutputDebugString(pchar(e.ClassName + ': ' + e.Message));
     end;

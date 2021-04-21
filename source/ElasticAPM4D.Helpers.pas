@@ -3,7 +3,11 @@ unit ElasticAPM4D.Helpers;
 interface
 
 uses
-  System.Classes, System.SysUtils, IdHTTP, ElasticAPM4D.Transaction, ElasticAPM4D.Span;
+  System.Classes,
+  System.SysUtils,
+  IdHTTP,
+  ElasticAPM4D.Transaction,
+  ElasticAPM4D.Span;
 
 function StartTransaction(AIdHTTP: TIdHTTP; const AType, AName: string): TTransaction;
 procedure SetTransactionHttpContext(AIdHTTP: TIdHTTP);
@@ -24,8 +28,11 @@ type
 
 implementation
 
-Uses
-  ElasticAPM4D, ElasticAPM4D.Context, ElasticAPM4D.Request, ElasticAPM4D.Error;
+uses
+  ElasticAPM4D,
+  ElasticAPM4D.Context,
+  ElasticAPM4D.Request,
+  ElasticAPM4D.Error;
 
 function StartTransaction(AIdHTTP: TIdHTTP; const AType, AName: string): TTransaction;
 begin
@@ -60,7 +67,7 @@ end;
 procedure EndTransaction(AIdHTTP: TIdHTTP);
 begin
   if not TElasticAPM4D.ExistsTransaction then
-    exit;
+    Exit;
 
   TElasticAPM4D.CurrentTransaction.Context.Response := TResponse.Create;
   TElasticAPM4D.CurrentTransaction.Context.Response.finished := True;
@@ -77,36 +84,34 @@ end;
 
 procedure EndSpan(AIdHTTP: TIdHTTP);
 begin
-  TElasticAPM4D.CurrentSpan.Context.http := THttp.Create;
-  TElasticAPM4D.CurrentSpan.Context.http.Method := AIdHTTP.Request.Method;
+  TElasticAPM4D.CurrentSpan.Context.http             := THttp.Create;
+  TElasticAPM4D.CurrentSpan.Context.http.Method      := AIdHTTP.Request.Method;
   TElasticAPM4D.CurrentSpan.Context.http.status_code := AIdHTTP.ResponseCode;
-  TElasticAPM4D.CurrentSpan.Context.http.url := AIdHTTP.url.URI;
+  TElasticAPM4D.CurrentSpan.Context.http.url         := AIdHTTP.url.URI;
   TElasticAPM4D.EndSpan;
 end;
 
 {$IFDEF dmvcframework}
 
-
 class function TElasticAPM4D.StartTransaction(AActionName: string; AContext: TWebContext): TTransaction;
 begin
-  Result := StartCustomTransaction('DMVCFramework', AActionName);
+  Result          := StartCustomTransaction('DMVCFramework', AActionName);
   FPackage.Header := AContext.Request.Headers[HeaderKey];
 end;
 
-class procedure TElasticAPM4D.EndTransaction(const ARESTClient: MVCFramework.RESTClient.TRESTClient;
-  const AResponse: IRESTResponse; const AHttpMethod: string);
+class procedure TElasticAPM4D.EndTransaction(const ARESTClient: MVCFramework.RESTClient.TRESTClient; const AResponse: IRESTResponse; const AHttpMethod: string);
 var
   LError: TError;
 begin
   CurrentTransaction.Context.AutoConfigureContext(AResponse);
   CurrentTransaction.Context.Request.url.Full := ARESTClient.url;
-  CurrentTransaction.Context.Request.Method := AHttpMethod;
+  CurrentTransaction.Context.Request.Method   := AHttpMethod;
   if AResponse.HasError then
   begin
     LError := GetError;
 
-    LError.Exception.Code := AResponse.Error.HTTPError.ToString;
-    LError.Exception.&Type := AResponse.Error.ExceptionClassname;
+    LError.Exception.Code    := AResponse.Error.HTTPError.ToString;
+    LError.Exception.&Type   := AResponse.Error.ExceptionClassname;
     LError.Exception.Message := AResponse.Error.ExceptionMessage;
 
     AddError(LError);

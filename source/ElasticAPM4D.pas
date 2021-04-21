@@ -12,7 +12,11 @@ uses
   ElasticAPM4D.Span,
   ElasticAPM4D.Transaction,
   ElasticAPM4D.User,
-  ElasticAPM4D.Package;
+  ElasticAPM4D.Package
+{$IFDEF Indy},
+  IdHttp
+{$ENDIF}
+    ;
 
 type
   TTransaction = ElasticAPM4D.Transaction.TTransaction;
@@ -24,15 +28,15 @@ type
     class var FTransactionSampleRate: Float32;
     class var FCaptureHeaders:        Boolean;
     class var FCaptureBody:           Boolean;
-    class var FRecording: Boolean;
+    class var FRecording:             Boolean;
     class procedure Finalize;
     class procedure Initialize;
 
     class function GetHeaderValue: string; static;
     class procedure SetHeaderValue(const AValue: string); static;
   protected
-    class var FUser:      TUser;
-    class var FDataBase:  TDB;
+    class var FUser:     TUser;
+    class var FDataBase: TDB;
     class function GetError: TError;
   public
     class procedure AddUser(AUserId, AUsername: string; AUserMail: string = ''); overload;
@@ -57,8 +61,9 @@ type
     class procedure AddError(const AMessage: string); overload;
     class procedure AddError(AError: TError); overload;
     class procedure AddError(E: Exception); overload;
+{$IFDEF Indy}
     class procedure AddError(E: EIdHTTPProtocolException); overload;
-
+{$ENDIF}
     class property IsRecording: Boolean read FRecording write FRecording;
     class property TransactionSampleRate: Float32 read FTransactionSampleRate write FTransactionSampleRate;
     class property IsCaptureHeaders: Boolean read FCaptureHeaders write FCaptureHeaders;
@@ -252,6 +257,8 @@ begin
   FPackage.ErrorList.Add(AError);
 end;
 
+{$IFDEF Indy}
+
 class procedure TElasticAPM4D.AddError(E: EIdHTTPProtocolException);
 var
   LError: TError;
@@ -265,6 +272,7 @@ begin
   LError.Exception.&type   := E.ClassName;
   FPackage.ErrorList.Add(LError)
 end;
+{$ENDIF}
 
 class procedure TElasticAPM4D.AddError(const AMessage: string);
 var
