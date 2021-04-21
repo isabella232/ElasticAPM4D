@@ -27,6 +27,9 @@ type
     class var FRecording: Boolean;
     class procedure Finalize;
     class procedure Initialize;
+
+    class function GetHeaderValue: string; static;
+    class procedure SetHeaderValue(const AValue: string); static;
   protected
     class var FUser:      TUser;
     class var FDataBase:  TDB;
@@ -36,7 +39,7 @@ type
     class procedure AddDataBase(const ADbType { sql } , AInstance { servername } , ADbUser: string);
 
     class function HeaderKey: string;
-    class function HeaderValue: string;
+    class property HeaderValue: string read GetHeaderValue write SetHeaderValue;
 
     class function StartTransaction(const AType, AName: string; const ATraceId: string = ''): TTransaction;
     class function ExistsTransaction: Boolean;
