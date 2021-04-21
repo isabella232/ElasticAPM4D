@@ -2,23 +2,25 @@ unit ElasticAPM4D.Utils;
 
 interface
 
-Uses
-  System.SysUtils, System.IniFiles;
+uses
+  System.SysUtils,
+  System.IniFiles,
+  Winapi.Windows;
 
 type
   EElasticAPM4DException = Exception;
 
   TConfig = class
   private
-    class var FDatabase: string;
-    class var FDatabaseUser: string;
-    class var FAppName: string;
-    class var FAppVersion: string;
+    class var FDatabase:      string;
+    class var FDatabaseUser:  string;
+    class var FAppName:       string;
+    class var FAppVersion:    string;
     class var FUrlElasticAPM: string;
-    class var FIsActive: Boolean;
-    class var FUserId: string;
-    class var FUserName: string;
-    class var FUserMail: string;
+    class var FIsActive:      Boolean;
+    class var FUserId:        string;
+    class var FUserName:      string;
+    class var FUserMail:      string;
     class var FEnvironment:   string;
     class procedure SetEnvironment(const Value: string); static;
   public
@@ -49,24 +51,22 @@ type
 
   TUUid = class
   private
-    class
-      procedure RemoveChars(var AStr: string);
+    class procedure RemoveChars(var AStr: string);
   public
-    class
-      function Get64b: string;
-    class
-      function Get128b: string;
+    class function Get64b: string;
+    class function Get128b: string;
   end;
 
   TTimestampEpoch = class
-    class
-      function Get(ADate: TDatetime): Int64;
+    class function Get(ADate: TDatetime): Int64;
   end;
 
 implementation
 
-Uses
-{$IFDEF MSWINDOWS} Windows, Vcl.Forms, {$ENDIF} System.IOUtils, System.DateUtils;
+uses
+{$IFDEF MSWINDOWS}
+  Vcl.Forms, {$ENDIF} System.IOUtils,
+  System.DateUtils;
 
 { TUUid }
 
@@ -84,10 +84,10 @@ end;
 
 class function TUUid.Get128b: string;
 var
-  Uid: TGuid;
+  Uid:     TGuid;
   nResult: HResult;
 begin
-  Result := '';
+  Result  := '';
   nResult := CreateGuid(Uid);
   if nResult = S_OK then
   begin
@@ -120,16 +120,16 @@ end;
 class function TConfig.GetAppVersion: string;
 {$IFDEF MSWINDOWS}
 var
-  Exe: string;
+  Exe:          string;
   Size, Handle: DWORD;
-  Buffer: TBytes;
-  FixedPtr: PVSFixedFileInfo;
+  Buffer:       TBytes;
+  FixedPtr:     PVSFixedFileInfo;
 {$ENDIF}
 begin
   if FAppVersion.IsEmpty then
   begin
 {$IFDEF MSWINDOWS}
-    Exe := ParamStr(0);
+    Exe  := ParamStr(0);
     Size := GetFileVersionInfoSize(PChar(Exe), Handle);
     if Size = 0 then
     begin
@@ -137,12 +137,10 @@ begin
       Exit;
     end;
     SetLength(Buffer, Size);
-    if not GetFileVersionInfo(PChar(Exe), Handle, Size, Buffer) or
-      not VerQueryValue(Buffer, '\', Pointer(FixedPtr), Size) then
+    if not GetFileVersionInfo(PChar(Exe), Handle, Size, Buffer) or not VerQueryValue(Buffer, '\', Pointer(FixedPtr), Size) then
       RaiseLastOSError;
-    FAppVersion := Format('%d.%d.%d.%d',
-      [LongRec(FixedPtr.dwFileVersionMS).Hi, LongRec(FixedPtr.dwFileVersionMS).Lo,
-      LongRec(FixedPtr.dwFileVersionLS).Hi, LongRec(FixedPtr.dwFileVersionLS).Lo]);
+    FAppVersion := Format('%d.%d.%d.%d', [LongRec(FixedPtr.dwFileVersionMS).Hi, LongRec(FixedPtr.dwFileVersionMS).Lo, LongRec(FixedPtr.dwFileVersionLS).Hi,
+      LongRec(FixedPtr.dwFileVersionLS).Lo]);
 {$ENDIF}
   end;
   Result := FAppVersion;

@@ -5,13 +5,13 @@ interface
 type
   TUser = class
   private
-    FEmail: String;
-    FId: String;
-    FUsername: String;
+    FEmail:    string;
+    FId:       string;
+    FUsername: string;
   public
-    property Id: String read FId write FId;
-    property Username: String read FUsername write FUsername;
-    property Email: String read FEmail write FEmail;
+    property Id:       string read FId write FId;
+    property Username: string read FUsername write FUsername;
+    property Email:    string read FEmail write FEmail;
   end;
 
 implementation

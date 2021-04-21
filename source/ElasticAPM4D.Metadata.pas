@@ -3,14 +3,15 @@ unit ElasticAPM4D.Metadata;
 interface
 
 uses
-  ElasticAPM4D.Service, ElasticAPM4D.User;
+  ElasticAPM4D.Service,
+  ElasticAPM4D.User;
 
 type
   TProcess = class
   private
-    FArgv: TArray<String>;
-    FPid: Cardinal;
-    FPpid: Integer;
+    FArgv:  TArray<string>;
+    FPid:   Cardinal;
+    FPpid:  Integer;
     Ftitle: string;
 {$IFDEF MSWINDOWS}
     function GetParentProcessId: longint;
@@ -18,9 +19,9 @@ type
     function GetProcessName: string;
 {$ENDIF}
   public
-    Constructor Create;
+    constructor Create;
 
-    property Argv: TArray<String> read FArgv write FArgv;
+    property Argv: TArray<string> read FArgv write FArgv;
     property Pid: Cardinal read FPid;
     property Ppid: Integer read FPpid;
     property Title: string read Ftitle;
@@ -28,24 +29,24 @@ type
 
   TSystem = class
   private
-    FArchitecture: String;
-    FHostname: String;
-    FPlatform: String;
+    FArchitecture: string;
+    FHostname:     string;
+    FPlatform:     string;
     function GetHostNameInOS: string;
   public
     constructor Create;
 
-    property Architecture: String read FArchitecture;
-    property Hostname: String read FHostname;
-    property &Platform: String read FPlatform;
+    property Architecture: string read FArchitecture;
+    property Hostname: string read FHostname;
+    property &Platform: string read FPlatform;
   end;
 
   TMetadata = class
   private
     FProcess: TProcess;
     FService: TService;
-    FSystem: TSystem;
-    FUser: TUser;
+    FSystem:  TSystem;
+    FUser:    TUser;
   public
     constructor Create; virtual;
     destructor Destroy; override;
@@ -60,49 +61,38 @@ type
 
 implementation
 
-Uses
-{$IFDEF MSWINDOWS} TLHelp32, psAPI, Winapi.Windows, Vcl.Forms, {$ENDIF}
+uses
+{$IFDEF MSWINDOWS} TLHelp32,
+  psAPI,
+  Winapi.Windows,
+  Vcl.Forms, {$ENDIF}
 {$IFDEF UNIX} Unix, {$ENDIF}
-  System.SysUtils, Rest.Json, ElasticAPM4D.Resources;
+  System.SysUtils,
+  Rest.Json,
+  ElasticAPM4D.Resources;
 
 constructor TProcess.Create;
 begin
 {$IFDEF MSWINDOWS}
   Ftitle := GetProcessName;
-  FPid := GetProcessId;
-  FPpid := GetParentProcessId;
+  FPid   := GetProcessId;
+  FPpid  := GetParentProcessId;
 {$ENDIF}
 end;
 
 {$IFDEF MSWINDOWS}
 
-
 function TProcess.GetProcessId: longint;
-var
-  LHandle: THandle;
-  LEntry: TProcessEntry32;
 begin
-  Result := 0;
-  try
-    LHandle := CreateToolHelp32SnapShot(TH32CS_SNAPPROCESS, 0);
-    LEntry.dwSize := SizeOf(TProcessEntry32);
-    if Process32First(LHandle, LEntry) and (LEntry.szExeFile = Application.ExeName) then
-      Exit(LEntry.th32ProcessID);
-
-    while Process32Next(LHandle, LEntry) do
-      if LEntry.szExeFile = Application.ExeName then
-        Exit(LEntry.th32ProcessID);
-  except
-    Exit;
-  end;
+  Result := GetCurrentProcessId();
 end;
 
 function TProcess.GetProcessName: string;
 var
   LProcess: THandle;
-  LModName: Array [0 .. MAX_PATH + 1] of Char;
+  LModName: array [0 .. MAX_PATH + 1] of Char;
 begin
-  Result := Application.Title;
+  Result   := Application.Title;
   LProcess := OpenProcess(PROCESS_ALL_ACCESS, False, FPid);
   try
     if LProcess <> 0 then
@@ -116,7 +106,7 @@ end;
 function TProcess.GetParentProcessId: longint;
 var
   Snapshot: THandle;
-  Entry: TProcessEntry32;
+  Entry:    TProcessEntry32;
   NotFound: Boolean;
 begin
   Result := 0;
@@ -126,7 +116,7 @@ begin
   begin
     FillChar(Entry, SizeOf(Entry), 0);
     Entry.dwSize := SizeOf(Entry);
-    NotFound := Process32First(Snapshot, Entry);
+    NotFound     := Process32First(Snapshot, Entry);
     while NotFound do
     begin
       if Entry.th32ProcessID = FPid then
@@ -140,7 +130,6 @@ begin
   end;
 end;
 {$ENDIF}
-
 { TSystem }
 
 function TSystem.GetHostNameInOS: string;
@@ -165,8 +154,8 @@ const
   ARQHITECTURE: array [TOSVersion.TArchitecture] of string = ('IntelX86', 'IntelX64', 'ARM32', 'ARM64');
 begin
   FArchitecture := ARQHITECTURE[TOSVersion.Architecture];
-  FHostname := GetHostNameInOS;
-  FPlatform := TOSVersion.ToString;
+  FHostname     := GetHostNameInOS;
+  FPlatform     := TOSVersion.ToString;
 end;
 
 { TMetadata }
@@ -174,8 +163,8 @@ end;
 constructor TMetadata.Create;
 begin
   FService := TService.Create;
-  FSystem := TSystem.Create;
-  FUser := TUser.Create;
+  FSystem  := TSystem.Create;
+  FUser    := TUser.Create;
   FProcess := TProcess.Create;
 end;
 

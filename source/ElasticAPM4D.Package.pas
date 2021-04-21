@@ -24,13 +24,13 @@ uses
 type
   TPackage = class
   private
-    FMetadata: TMetadata;
-    FTransaction: TTransaction;
-    FSpanList: TObjectList<TSpan>;
-    FErrorList: TObjectList<TError>;
+    FMetadata:      TMetadata;
+    FTransaction:   TTransaction;
+    FSpanList:      TObjectList<TSpan>;
+    FErrorList:     TObjectList<TError>;
     FOpenSpanStack: TList;
-    FUser: TUser;
-    FHeader: string;
+    FUser:          TUser;
+    FHeader:        string;
     function ExtractTraceId: string;
     function ExtractParentID: string;
     function GetHeader: string;

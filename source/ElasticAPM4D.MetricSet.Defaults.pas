@@ -9,10 +9,10 @@ uses
   System.Classes;
 
 type
-  TDiskInfo = Record
+  TDiskInfo = record
     Usage: Int64;
     FreeSpace: Int64;
-  End;
+  end;
 
   TMetricsetDefaults = class
 {$IFDEF MSWINDOWS}
@@ -52,21 +52,26 @@ type
 implementation
 
 {$IFDEF MSWINDOWS}
-uses
-  ActiveX, ComObj, Variants,
-  TLHelp32, psAPI, Winapi.Windows, System.SysUtils;
-{$ENDIF}
 
+uses
+  ComObj,
+  Variants,
+  TLHelp32,
+  psAPI,
+  Winapi.Windows,
+  System.SysUtils;
+{$ENDIF}
 { TMetricsetDefaults }
 
 {$IFDEF MSWINDOWS}
+
 class function TMetricsetDefaults.MemoryUsage: Int64;
 var
   pmc: PPROCESS_MEMORY_COUNTERS;
-  cb: Integer;
+  cb:  Integer;
 begin
   Result := 0;
-  cb := SizeOf(TProcessMemoryCounters);
+  cb     := SizeOf(TProcessMemoryCounters);
   GetMem(pmc, cb);
   pmc^.cb := cb;
   if GetProcessMemoryInfo(GetCurrentProcess(), pmc, cb) then
@@ -76,32 +81,31 @@ end;
 
 class function TMetricsetDefaults.DiskInfo: TDiskInfo;
 const
-  WbemUser = '';
-  WbemPassword = '';
-  WbemComputer = 'localhost';
+  WbemUser            = '';
+  WbemPassword        = '';
+  WbemComputer        = 'localhost';
   wbemFlagForwardOnly = $00000020;
 var
-  FSWbemLocator: OLEVariant;
-  FWMIService: OLEVariant;
+  FSWbemLocator:  OLEVariant;
+  FWMIService:    OLEVariant;
   FWbemObjectSet: OLEVariant;
-  FWbemObject: OLEVariant;
-  oEnum: IEnumvariant;
-  iValue: LongWord;
+  FWbemObject:    OLEVariant;
+  oEnum:          IEnumvariant;
+  iValue:         LongWord;
 begin;
   CoInitialize(nil);
 
   Result.FreeSpace := 0;
-  Result.Usage := 0;
-  FSWbemLocator := CreateOleObject('WbemScripting.SWbemLocator');
-  FWMIService := FSWbemLocator.ConnectServer(WbemComputer, 'root\CIMV2', WbemUser, WbemPassword);
-  FWbemObjectSet := FWMIService.ExecQuery(Format('SELECT * FROM Win32_LogicalDisk Where Caption=%s',
-    [QuotedStr('c')]), 'WQL', wbemFlagForwardOnly);
-  oEnum := IUnknown(FWbemObjectSet._NewEnum) as IEnumvariant;
+  Result.Usage     := 0;
+  FSWbemLocator    := CreateOleObject('WbemScripting.SWbemLocator');
+  FWMIService      := FSWbemLocator.ConnectServer(WbemComputer, 'root\CIMV2', WbemUser, WbemPassword);
+  FWbemObjectSet   := FWMIService.ExecQuery(Format('SELECT * FROM Win32_LogicalDisk Where Caption=%s', [QuotedStr('c')]), 'WQL', wbemFlagForwardOnly);
+  oEnum            := IUnknown(FWbemObjectSet._NewEnum) as IEnumvariant;
   if oEnum.Next(1, FWbemObject, iValue) = 0 then
   begin
     Result.FreeSpace := FWbemObject.FreeSpace;
-    Result.Usage := FWbemObject.Size - Result.FreeSpace;
-    FWbemObject := Unassigned;
+    Result.Usage     := FWbemObject.Size - Result.FreeSpace;
+    FWbemObject      := Unassigned;
   end;
 end;
 {$ENDIF}

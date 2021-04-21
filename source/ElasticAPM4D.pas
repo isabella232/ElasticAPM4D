@@ -3,9 +3,16 @@ unit ElasticAPM4D;
 interface
 
 uses
-  System.Rtti, System.SysUtils, System.classes, System.Generics.Collections,
-  ElasticAPM4D.Resources, ElasticAPM4D.Error, ElasticAPM4D.Span, ElasticAPM4D.Transaction,
-  ElasticAPM4D.User, ElasticAPM4D.Package, IdHTTP;
+  System.Rtti,
+  System.SysUtils,
+  System.classes,
+  System.Generics.Collections,
+  ElasticAPM4D.Resources,
+  ElasticAPM4D.Error,
+  ElasticAPM4D.Span,
+  ElasticAPM4D.Transaction,
+  ElasticAPM4D.User,
+  ElasticAPM4D.Package;
 
 type
   TTransaction = ElasticAPM4D.Transaction.TTransaction;
@@ -66,10 +73,10 @@ uses
 class procedure TElasticAPM4D.AddUser(AUserId, AUsername, AUserMail: string);
 begin
   if not Assigned(FUser) then
-    FUser := TUser.Create;
+    FUser        := TUser.Create;
   FUser.username := AUsername;
-  FUser.id := AUserId;
-  FUser.email := AUserMail;
+  FUser.id       := AUserId;
+  FUser.email    := AUserMail;
 end;
 
 class procedure TElasticAPM4D.AddDataBase(ADbType, ADbUser: string);
@@ -77,8 +84,8 @@ begin
   if not Assigned(FDataBase) then
     FDataBase := TDB.Create;
 
-  FDataBase.&type := ADbType;
-  FDataBase.User := ADbUser;
+  FDataBase.&type    := ADbType;
+  FDataBase.User     := ADbUser;
 end;
 
 class function TElasticAPM4D.GetHeaderValue: string;
@@ -104,9 +111,9 @@ begin
 
   if Assigned(FUser) then
   begin
-    FPackage.Transaction.Context.User.id := FUser.id;
+    FPackage.Transaction.Context.User.id       := FUser.id;
     FPackage.Transaction.Context.User.username := FUser.username;
-    FPackage.Transaction.Context.User.email := FUser.email;
+    FPackage.Transaction.Context.User.email    := FUser.email;
   end;
 
   if not ATraceId.IsEmpty then
@@ -117,7 +124,7 @@ end;
 
 class function TElasticAPM4D.StartSpan(const AName, ASQL: string): TSpan;
 begin
-  Result := StartCustomSpan(AName, 'Sql');
+  Result                      := StartCustomSpan(AName, 'Sql');
   Result.Context.db.statement := ASQL;
 end;
 
@@ -171,15 +178,15 @@ begin
   else
     Result := TSpan.Create(CurrentTransaction.trace_id, CurrentTransaction.id, CurrentTransaction.id);
   Result.Start;
-  Result.name := AName;
+  Result.name  := AName;
   Result.&type := AType;
   if Assigned(FDataBase) then
   begin
-    Result.Context.db.instance := FDataBase.instance;
-    Result.Context.db.link := FDataBase.link;
+    Result.Context.db.Instance  := FDataBase.Instance;
+    Result.Context.db.link      := FDataBase.link;
     Result.Context.db.statement := FDataBase.statement;
-    Result.Context.db.&type := FDataBase.&type;
-    Result.Context.db.User := FDataBase.User;
+    Result.Context.db.&type     := FDataBase.&type;
+    Result.Context.db.User      := FDataBase.User;
   end;
   FPackage.SpanList.Add(Result);
   FPackage.OpenSpanStack.Add(Result);
@@ -216,11 +223,9 @@ begin
   if not Assigned(FPackage) then
     Exit;
 
-  LError := GetError;
-
-  LError.Exception.&type := E.ClassName;
+  LError                   := GetError();
+  LError.Exception.&type   := E.ClassName;
   LError.Exception.message := E.message;
-
   FPackage.ErrorList.Add(LError)
 end;
 

@@ -10,32 +10,32 @@ uses
 type
   TSocket = class
   private
-    FEncrypted: Boolean;
+    FEncrypted:      Boolean;
     FRemote_address: string;
   public
-    property Encrypted: Boolean read FEncrypted write FEncrypted;
+    property Encrypted:      Boolean read FEncrypted write FEncrypted;
     property Remote_address: string read FRemote_address write FRemote_address;
   end;
 
   TURL = class
   private
-    FFull: string;
-    FHash: string;
+    FFull:     string;
+    FHash:     string;
     FHostname: string;
     FPathname: string;
-    FPort: Integer;
+    FPort:     Integer;
     FProtocol: string;
-    FRaw: string;
-    FSearch: string;
+    FRaw:      string;
+    FSearch:   string;
   public
-    property Full: string read FFull write FFull;
-    property Hash: string read FHash write FHash;
+    property Full:     string read FFull write FFull;
+    property Hash:     string read FHash write FHash;
     property Hostname: string read FHostname write FHostname;
     property Pathname: string read FPathname write FPathname;
-    property Port: Integer read FPort write FPort;
+    property Port:     Integer read FPort write FPort;
     property Protocol: string read FProtocol write FProtocol;
-    property Raw: string read FRaw write FRaw;
-    property Search: string read FSearch write FSearch;
+    property Raw:      string read FRaw write FRaw;
+    property Search:   string read FSearch write FSearch;
   end;
 
   TKeyValues = class(TDictionary<string, string>);
@@ -66,7 +66,7 @@ type
 
 implementation
 
-Uses
+uses
   System.SysUtils;
 
 { TRequest }
@@ -74,7 +74,7 @@ Uses
 constructor TRequest.Create;
 begin
   FSocket := TSocket.Create;
-  FUrl := TURL.Create;
+  FUrl    := TURL.Create;
 end;
 
 destructor TRequest.Destroy;

@@ -3,7 +3,9 @@ unit ElasticAPM4D.Transaction;
 interface
 
 uses
-  System.Classes, System.SysUtils, ElasticAPM4D.Context;
+  System.Classes,
+  System.SysUtils,
+  ElasticAPM4D.Context;
 
 type
   TSpanCount = class
@@ -24,18 +26,18 @@ type
   // https://github.com/elastic/apm-server/blob/v7.12.0/docs/spec/v2/transaction.json
   TTransaction = class
   private
-    FStartDate: TDateTime;
-    Fid: string;
-    Ftrace_id: string;
-    Fname: string;
-    Ftype: string;
-    Fresult: string;
-    Fduration: int64;
-    Fcontext: TContext;
+    FStartDate:  TDateTime;
+    Fid:         string;
+    Ftrace_id:   string;
+    Fname:       string;
+    Ftype:       string;
+    Fresult:     string;
+    Fduration:   int64;
+    Fcontext:    TContext;
     Fspan_count: TSpanCount;
-    Fsampled: boolean;
-    Fparent_id: string;
-    Ftimestamp: int64;
+    Fsampled:    boolean;
+    Fparent_id:  string;
+    Ftimestamp:  int64;
   public
     constructor Create;
     destructor Destroy; override;
@@ -48,7 +50,7 @@ type
     property Id: string read Fid;
     property Trace_id: string read Ftrace_id write Ftrace_id;
     property Parent_id: string read Fparent_id write Fparent_id;
-    property Name: string read Fname write Fname;
+    property name: string read Fname write Fname;
     property &type: string read Ftype;
     property Span_count: TSpanCount read Fspan_count;
     property Context: TContext read Fcontext write Fcontext;
@@ -60,8 +62,12 @@ type
 
 implementation
 
-Uses
-  System.DateUtils, REST.Json, ElasticAPM4D.Utils, ElasticAPM4D.Resources;
+uses
+  System.DateUtils,
+  REST.JSON,
+  System.JSON,
+  ElasticAPM4D.Utils,
+  ElasticAPM4D.Resources;
 
 { TSpanCount }
 
@@ -92,9 +98,9 @@ end;
 constructor TTransaction.Create;
 begin
   Fspan_count := TSpanCount.Create;
-  Fid := TUUid.Get64b;
-  Ftrace_id := TUUid.Get128b;
-  Fsampled := true;
+  Fid         := TUUid.Get64b;
+  Ftrace_id   := TUUid.Get128b;
+  Fsampled    := True;
 end;
 
 destructor TTransaction.Destroy;
@@ -114,8 +120,8 @@ procedure TTransaction.Start(const AType, AName: string);
 begin
   FStartDate := now;
   Ftimestamp := TTimestampEpoch.Get(FStartDate);
-  Ftype := AType;
-  Fname := AName;
+  Ftype      := AType;
+  Fname      := AName;
 end;
 
 function TTransaction.ToJsonString: string;

@@ -14,29 +14,29 @@ uses
 type
   TPage = class
   private
-    FReferer: String;
-    FUrl: String;
+    FReferer: string;
+    FUrl:     string;
   public
-    property Referer: String read FReferer write FReferer;
-    property Url: String read FUrl write FUrl;
+    property Referer: string read FReferer write FReferer;
+    property Url:     string read FUrl write FUrl;
   end;
 
   TResponse = class
   private
-    FFinished: Boolean;
+    FFinished:     Boolean;
     FHeaders_sent: Boolean;
-    FStatus_code: Integer;
-    Fheaders: TObject;
+    FStatus_code:  Integer;
+    Fheaders:      TObject;
   public
-    property Finished: Boolean read FFinished write FFinished;
+    property Finished:     Boolean read FFinished write FFinished;
     property Headers_sent: Boolean read FHeaders_sent write FHeaders_sent;
-    property Status_code: Integer read FStatus_code write FStatus_code;
-    property Headers: TObject read Fheaders write Fheaders;
+    property Status_code:  Integer read FStatus_code write FStatus_code;
+    property Headers:      TObject read Fheaders write Fheaders;
   end;
 
   TContext = class
   private
-    FPage: TPage;
+    FPage:     TPage;
     FResponse: TResponse;
     FRequest:  TRequest;
     FUser:     TUser;

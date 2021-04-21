@@ -5,62 +5,62 @@ interface
 type
   TAgent = class
   private
-    FName: String;
-    FVersion: String;
+    FName:         string;
+    FVersion:      string;
     Fephemeral_id: string;
   public
     constructor Create;
 
-    property Name: String read FName;
-    property Version: String read FVersion;
+    property name: string read FName;
+    property Version: string read FVersion;
     property Ephemeral_id: string read Fephemeral_id write Fephemeral_id;
   end;
 
   TLanguage = class
   private
-    FName: String;
-    FVersion: String;
+    FName:    string;
+    FVersion: string;
   public
     constructor Create;
 
-    property Name: String read FName write FName;
-    property Version: String read FVersion write FVersion;
+    property name: string read FName write FName;
+    property Version: string read FVersion write FVersion;
   end;
 
   TFramework = class
   private
-    FName: String;
-    FVersion: String;
+    FName:    string;
+    FVersion: string;
   public
-    property Name: String read FName write FName;
-    property Version: String read FVersion write FVersion;
+    property name:    string read FName write FName;
+    property Version: string read FVersion write FVersion;
   end;
 
   TRuntime = class
   private
-    FName: String;
-    FVersion: String;
+    FName:    string;
+    FVersion: string;
   public
     constructor Create;
 
-    property Name: String read FName write FName;
-    property Version: String read FVersion write FVersion;
+    property name: string read FName write FName;
+    property Version: string read FVersion write FVersion;
   end;
 
   TService = class
   private
-    FFramework: TFramework;
-    FLanguage: TLanguage;
-    FRuntime: TRuntime;
-    FAgent: TAgent;
-    FVersion: String;
+    FFramework:   TFramework;
+    FLanguage:    TLanguage;
+    FRuntime:     TRuntime;
+    FAgent:       TAgent;
+    FVersion:     string;
     FEnvironment: string;
-    FName: String;
+    FName:        string;
   public
     constructor Create;
     destructor Destroy; override;
 
-    property Name: String read FName;
+    property name: string read FName;
     property Version: string read FVersion write FVersion;
     property Agent: TAgent read FAgent;
     property Environment: string read FEnvironment write FEnvironment;
@@ -72,14 +72,15 @@ type
 implementation
 
 uses
-  System.SysUtils, ElasticAPM4D.Utils;
+  System.SysUtils,
+  ElasticAPM4D.Utils;
 
 { TAgent }
 
 constructor TAgent.Create;
 begin
-  FVersion := '1.2.0';
-  FName := 'ElasticAPM4D';
+  FVersion      := '1.2.0';
+  FName         := 'ElasticAPM4D';
   Fephemeral_id := '';
 end;
 
@@ -87,7 +88,7 @@ end;
 
 constructor TLanguage.Create;
 begin
-  FName := 'Delphi/Object Pascal';
+  FName    := 'Delphi/Object Pascal';
   FVersion :=
 {$IFDEF VER80} 'Delphi 1'; {$ENDIF}
 {$IFDEF VER90} 'Delphi 2'; {$ENDIF}
@@ -121,7 +122,7 @@ end;
 
 constructor TRuntime.Create;
 begin
-  FName := TConfig.GetAppName;
+  FName   := TConfig.GetAppName;
   Version := TConfig.GetAppVersion;
 end;
 
@@ -129,12 +130,12 @@ end;
 
 constructor TService.Create;
 begin
-  FAgent := TAgent.Create;
-  FLanguage := TLanguage.Create;
-  FRuntime := TRuntime.Create;
+  FAgent     := TAgent.Create;
+  FLanguage  := TLanguage.Create;
+  FRuntime   := TRuntime.Create;
   FFramework := TFramework.Create;
-  FVersion := TConfig.GetAppVersion;
-  FName := TConfig.GetAppName;
+  FVersion   := TConfig.GetAppVersion;
+  FName      := TConfig.GetAppName;
 end;
 
 destructor TService.Destroy;
