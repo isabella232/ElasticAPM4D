@@ -25,10 +25,12 @@ type
     class function GetDatabase: string;
     class function GetDatabaseUser: string; static;
     class function GetIsActive: Boolean; static;
-    class function GetUrlElasticAPM: string; static;
     class function GetUserId: string; static;
     class function GetUserMail: string; static;
     class function GetUserName: string; static;
+
+    class function GetUrlElasticAPM: string; static;
+    class function GetUrlElasticAPMEvents: string; static;
 
     class procedure SetAppName(const Value: string); static;
     class procedure SetAppVersion(const Value: string); static;
@@ -158,8 +160,13 @@ end;
 class function TConfig.GetUrlElasticAPM: string;
 begin
   if FUrlElasticAPM.IsEmpty then
-    FUrlElasticAPM := 'http://127.0.0.1:8200/intake/v2/events';
-  Result := FUrlElasticAPM;
+    FUrlElasticAPM := 'http://127.0.0.1:8200';
+  Result           := FUrlElasticAPM;
+end;
+
+class function TConfig.GetUrlElasticAPMEvents: string;
+begin
+  Result := GetUrlElasticAPM() + '/intake/v2/events';
 end;
 
 class function TConfig.GetUserId: string;

@@ -14,10 +14,14 @@ type
   strict private
     class threadvar FPackage: TPackage;
   private
+    class var FTransactionSampleRate: Float32;
+    class var FCaptureHeaders:        Boolean;
+    class var FCaptureBody:           Boolean;
+    class var FRecording: Boolean;
     class procedure Finalize;
+    class procedure Initialize;
   protected
-    class var FUser: TUser;
-    class var FDataBase: TDB;
+    class var FRecording: Boolean;
     class function GetError: TError;
   public
     class procedure AddUser(AUserId, AUsername: string; AUserMail: string = ''); overload;
@@ -39,6 +43,14 @@ type
     class procedure AddError(AError: TError); overload;
     class procedure AddError(E: Exception); overload;
     class procedure AddError(E: EIdHTTPProtocolException); overload;
+
+    class property IsRecording: Boolean read FRecording write FRecording;
+    class property TransactionSampleRate: Float32 read FTransactionSampleRate write FTransactionSampleRate;
+    class property IsCaptureHeaders: Boolean read FCaptureHeaders write FCaptureHeaders;
+    class property IsCaptureBody: Boolean read FCaptureBody write FCaptureBody;
+
+    class constructor Create;
+    class destructor Destroy;
   end;
 
 implementation
@@ -66,15 +78,7 @@ begin
   FDataBase.User := ADbUser;
 end;
 
-class procedure TElasticAPM4D.Finalize;
-begin
-  if Assigned(FUser) then
-    FUser.Free;
-  if Assigned(FDataBase) then
-    FDataBase.Free;
-end;
-
-class function TElasticAPM4D.HeaderValue: string;
+class function TElasticAPM4D.GetHeaderValue: string;
 begin
   if not Assigned(FPackage) then
     Exit('');
@@ -130,17 +134,24 @@ begin
   FPackage.Transaction.Result := AResult;
   if (AResult = sDEFAULT_RESULT) and (FPackage.ErrorList.Count > 0) then
     FPackage.Transaction.Result := 'Failure';
-  try
     FPackage.Transaction.&End;
-    FPackage.ToSend;
-  finally
-    FreeAndNil(FPackage);
+
+  TSender.Instance.AddPackageToQueue(FPackage);
+  FPackage := nil;
   end;
 end;
 
 class function TElasticAPM4D.ExistsTransaction: Boolean;
 begin
   Result := Assigned(FPackage);
+end;
+
+class procedure TElasticAPM4D.SetHeaderValue(const AValue: string);
+begin
+  if not Assigned(FPackage) then
+    Exit;
+
+  FPackage.Header := AValue;
 end;
 
 class function TElasticAPM4D.StartCustomSpan(const AName, AType: string): TSpan;
@@ -218,19 +229,36 @@ begin
   if not Assigned(FPackage) then
     Exit;
 
-  LError := GetError;
-
-  LError.Exception.Code := E.ErrorCode.ToString;
+  LError                   := GetError();
+  LError.Exception.Code    := E.ErrorCode.ToString;
   LError.Exception.message := E.ErrorMessage;
-  LError.Exception.&type := E.ClassName;
-
+  LError.Exception.&type   := E.ClassName;
   FPackage.ErrorList.Add(LError)
 end;
 
-initialization
+class constructor TElasticAPM4D.Create;
+begin
+  Initialize();
+end;
 
-finalization
+class procedure TElasticAPM4D.Initialize;
+begin
+  FTransactionSampleRate := 1.0;
+  FRecording             := True;
 
-TElasticAPM4D.Finalize;
+  TSender.Instance(); // start config fetch thread
+end;
+
+class destructor TElasticAPM4D.Destroy;
+begin
+  Finalize();
+end;
+
+class procedure TElasticAPM4D.Finalize;
+begin
+  FUser.Free;
+  FDataBase.Free;
+  TSender.TerminateAndFree();
+end;
 
 end.
