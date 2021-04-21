@@ -45,6 +45,7 @@ type
     class function ExistsTransaction: Boolean;
     class function CurrentTransaction: TTransaction;
     class procedure EndTransaction(const AResult: string = sDEFAULT_RESULT); overload;
+    class procedure ClearTransaction();
 
     class function StartCustomSpan(const AName: string; const AType: string = 'Method'): TSpan; overload;
     class function StartSpan(const AName, ASQL: string): TSpan; overload;
@@ -153,11 +154,11 @@ begin
   FPackage.Transaction.Result := AResult;
   if (AResult = sDEFAULT_RESULT) and (FPackage.ErrorList.Count > 0) then
     FPackage.Transaction.Result := 'Failure';
-    FPackage.Transaction.&End;
+  FPackage.Transaction.&End;
 
   TSender.Instance.AddPackageToQueue(FPackage);
   FPackage := nil;
-  end;
+end;
 
 class function TElasticAPM4D.ExistsError: Boolean;
 begin
@@ -200,6 +201,11 @@ begin
   FPackage.SpanList.Add(Result);
   FPackage.OpenSpanStack.Add(Result);
   CurrentTransaction.span_count.Inc;
+end;
+
+class procedure TElasticAPM4D.ClearTransaction;
+begin
+  FreeAndNil(FPackage);
 end;
 
 class function TElasticAPM4D.CurrentSpan: TSpan;

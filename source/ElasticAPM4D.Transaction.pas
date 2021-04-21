@@ -43,6 +43,7 @@ type
     destructor Destroy; override;
 
     procedure Start(const AType, AName: string);
+    function GetCurrentDuration(): int64;
     procedure &End;
 
     function ToJsonString: string;
@@ -114,6 +115,11 @@ end;
 procedure TTransaction.&End;
 begin
   Fduration := MilliSecondsBetween(now, FStartDate);
+end;
+
+function TTransaction.GetCurrentDuration: int64;
+begin
+  Result := MilliSecondsBetween(now, FStartDate);
 end;
 
 procedure TTransaction.Start(const AType, AName: string);

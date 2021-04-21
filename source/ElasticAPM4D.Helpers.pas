@@ -6,15 +6,21 @@ uses
   System.Classes, System.SysUtils, IdHTTP, ElasticAPM4D.Transaction, ElasticAPM4D.Span;
 
 function StartTransaction(AIdHTTP: TIdHTTP; const AType, AName: string): TTransaction;
+procedure SetTransactionHttpContext(AIdHTTP: TIdHTTP);
 procedure EndTransaction(AIdHTTP: TIdHTTP);
-function StartSpan(AName: string): TSpan;
+function StartSpan(const AName: string): TSpan;
 procedure EndSpan(AIdHTTP: TIdHTTP);
 {$IFDEF dmvcframework}
 class function StartTransaction(AActionName: string; AContext: TWebContext): TTransaction; overload;
-class procedure EndTransaction(const ARESTClient: MVCFramework.RESTClient.TRESTClient; const AResponse: IRESTResponse;
-  const AHttpMethod: string); overload;
+class procedure EndTransaction(const ARESTClient: MVCFramework.RESTClient.TRESTClient; const AResponse: IRESTResponse; const AHttpMethod: string); overload;
 class procedure EndTransaction(const AContext: TWebContext); overload;
 {$ENDIF}
+
+type
+  TIdHttpAPM = class(TIdHTTP)
+  protected
+    procedure DoRequest(const AMethod: TIdHTTPMethod; aUrl: string; ASource, AResponseContent: TStream; AIgnoreReplies: array of Int16); override;
+  end;
 
 implementation
 
@@ -27,15 +33,28 @@ begin
     Result := TElasticAPM4D.CurrentTransaction
   else
     Result := TElasticAPM4D.StartTransaction(AType, AName);
+end;
 
-  Result.Context.Request.url.Hostname := AIdHTTP.url.Host;
-  Result.Context.Request.url.Full := AIdHTTP.url.GetFullURI;
-  Result.Context.Request.url.Protocol := AIdHTTP.url.Protocol;
-  Result.Context.Request.url.Pathname := AIdHTTP.url.Path;
-  Result.Context.Request.url.port := StrToIntDef(AIdHTTP.url.port, 0);
-  Result.Context.Request.url.Search := AIdHTTP.url.Params;
-  Result.Context.Request.url.Raw := AIdHTTP.url.Document;
-  Result.Context.Request.Method := AIdHTTP.Request.Method;
+procedure SetTransactionHttpContext(AIdHTTP: TIdHTTP);
+var
+  Transaction: TTransaction;
+begin
+  Transaction := TElasticAPM4D.CurrentTransaction;
+  if Transaction = nil then
+    Exit;
+
+  if Transaction.Context = nil then
+    Transaction.Context := TContext.Create();
+  if Transaction.Context.Request = nil then
+    Transaction.Context.Request            := TRequest.Create;
+  Transaction.Context.Request.url.Hostname := AIdHTTP.url.Host;
+  Transaction.Context.Request.url.Full     := AIdHTTP.url.GetFullURI;
+  Transaction.Context.Request.url.Protocol := AIdHTTP.url.Protocol;
+  Transaction.Context.Request.url.Pathname := AIdHTTP.url.Path;
+  Transaction.Context.Request.url.port     := StrToIntDef(AIdHTTP.url.port, 0);
+  Transaction.Context.Request.url.Search   := AIdHTTP.url.Params;
+  Transaction.Context.Request.url.Raw      := AIdHTTP.url.URI;
+  Transaction.Context.Request.Method       := AIdHTTP.Request.Method;
 end;
 
 procedure EndTransaction(AIdHTTP: TIdHTTP);
@@ -51,7 +70,7 @@ begin
   TElasticAPM4D.EndTransaction;
 end;
 
-function StartSpan(AName: string): TSpan;
+function StartSpan(const AName: string): TSpan;
 begin
   Result := TElasticAPM4D.StartCustomSpan(AName, 'Request');
 end;
@@ -104,7 +123,6 @@ begin
 end;
 
 {$ENDIF}
-
 //
 // { TIdHTTP }
 //
@@ -185,5 +203,30 @@ end;
 // Response.headers_sent := FIdHTTP.Response.CustomHeaders.Count > 0;
 // Response.status_code := FIdHTTP.ResponseCode;
 // end;
+
+{ TIdHttpAPM }
+
+procedure TIdHttpAPM.DoRequest(const AMethod: TIdHTTPMethod; aUrl: string; ASource, AResponseContent: TStream; AIgnoreReplies: array of Int16);
+begin
+  try
+    if TElasticAPM4D.ExistsTransaction() then
+    begin
+      ElasticAPM4D.Helpers.StartSpan(aUrl);
+      Self.Request.CustomHeaders.AddValue('Traceparent', TElasticAPM4D.HeaderValue);
+    end;
+
+    try
+      inherited DoRequest(AMethod, aUrl, ASource, AResponseContent, AIgnoreReplies);
+    except
+      on E: EIdHTTPProtocolException do
+        TElasticAPM4D.AddError(E);
+      on E: Exception do
+        TElasticAPM4D.AddError(E);
+    end;
+  finally
+    if TElasticAPM4D.ExistsTransaction() then
+      ElasticAPM4D.Helpers.EndSpan(Self);
+  end;
+end;
 
 end.
