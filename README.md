@@ -2,14 +2,22 @@
 It´s an Agent for Elastic-APM in Delphi
 
 ## Features
-- Background configuration fetcher from APM Server
+- Background (on the fly) configuration fetcher from APM Server
   - recording
-  - capture_headers
-  - capture_body
+    - completely turn off any data capturing (but can be turned on again 
+    runtime) 
   - transaction_sample_rate
-- Background sending of data to APM Server
-- Distributed tracing (see demo below)
-- Error stack traces (use "JCL" conditional define)
+    - record only a percentage of all http call's, e.g. 10%.
+      Note: transaction's with an error are always stored (not discarded)
+  - capture_headers
+    - store http headers in transaction context or not
+  - capture_body
+    - store http body payload in transaction context or not
+- Background metrics retrieval (cpu and memory)
+- Background sending data to APM Server
+- Distributed tracing (see demo below: for one call, record all descendant call's acros different applications or services, even async processing)
+- Custom tags/labels (trace or filter multiple call's) 
+- Error stack traces (enable "JCL" conditional define)
 - Low overhead
 
 ## Demo
@@ -44,9 +52,29 @@ The complete [trace](http://localhost:5601/app/apm/services/DemoClient/transacti
 
 ![Demo trace](/demo/trace.png?raw=true)
 
+### Custom tags or labels
+
 You can filter on your own custom tags / labels, so you can find for example all call's with a specific order number:
 ```
 labels.tag_id : 22222
 ```
 
 ![Demo labels](/demo/labels.png?raw=true)
+
+### On the fly configuration
+
+All APM recording can be turned off during runtime, by changing the [application settings](http://localhost:5601/app/apm/settings/agent-configuration/edit?name=DemoServer&environment=) in Kibana: 
+
+![Demo settings](/demo/settings.png?raw=true)
+
+Restart the Demo client and server, or wait 1 minute (background config fetcher).
+
+### Alerting
+
+Alerting can be configured via the Alerts menu:
+
+![Alerting](/demo/alerting.png?raw=true)
+
+For example, send an e-mail when more than 0 errors have been occured:
+
+![Create alert](/demo/create-alert.png?raw=true)
