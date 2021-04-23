@@ -6,6 +6,9 @@ uses
   System.Classes,
   System.SysUtils,
   IdHTTP,
+  IdContext,
+  IdCustomHTTPServer,
+  IdHTTPServer,
   ElasticAPM4D.Transaction,
   ElasticAPM4D.Span;
 
@@ -21,6 +24,15 @@ class procedure EndTransaction(const AContext: TWebContext); overload;
 {$ENDIF}
 
 type
+  TIdHTTPServer_Helper = class helper for TIdHTTPServer
+  public type
+    THandleRequestCallback = procedure(AContext: TIdContext; ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo) of object;
+  public
+    procedure PreProcessRequest(AContext: TIdContext; ARequestInfo: TIdHTTPRequestInfo);
+    procedure ProcessRequest(AContext: TIdContext; ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo; ACallback: THandleRequestCallback);
+    procedure PostProcessRequest(AContext: TIdContext; ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo);
+  end;
+
   TIdHttpAPM = class(TIdHTTP)
   protected
     procedure DoRequest(const AMethod: TIdHTTPMethod; aUrl: string; ASource, AResponseContent: TStream; AIgnoreReplies: array of Int16); override;
@@ -126,88 +138,104 @@ begin
   CurrentTransaction.Context.AutoConfigureContext(AContext);
   EndTransaction;
 end;
-
 {$ENDIF}
-//
-// { TIdHTTP }
-//
-// procedure TIdHTTP.DoRequest(const AMethod: TIdHTTPMethod; AURL: string;
-// ASource, AResponseContent: TStream; AIgnoreReplies: array of Int16);
-// var
-// HasTransaction: Boolean;
-// LName: string;
-// begin
-// HasTransaction := TElasticAPM4D.ExistsTransaction;
-// LName := AURL;
-// if not HasTransaction then
-// begin
-// TElasticAPM4D.StartTransaction('Indy', AURL);
-// LName := 'DoRequest';
-// end;
-// // TElasticAPM4D.StartSpan(Self, LName);
-// try
-// Try
-// inherited;
-// except
-// // on E: EIdHTTPProtocolException do
-// // begin
-// // TElasticAPM4D.AddError(Self, E);
-// // raise;
-// // end;
-// on E: Exception do
-// begin
-// TElasticAPM4D.AddError(E);
-// raise;
-// end;
-// end;
-// Finally
-// // TElasticAPM4D.EndSpan(Self);
-// if not HasTransaction then
-// TElasticAPM4D.EndTransaction;
-// End;
-// end;
-//
-// { TContext }
-//
-// constructor TContext.Create(AIdHTTP: TIdHTTP);
-// var
-// I: Integer;
-// begin
-// inherited Create;
-// FIdHTTP := AIdHTTP;
-//
-// Page := TPage.Create;
-// Page.referer := AIdHTTP.Request.referer;
-// Page.url := AIdHTTP.Request.url;
-//
-// Request := TRequest.Create;
-//
-// Request.Method := AIdHTTP.Request.Method;
-// Request.Http_version := AIdHTTP.Version;
-// Request.Socket.encrypted := Assigned(AIdHTTP.Socket);
-//
-// Request.url.Hostname := AIdHTTP.url.Host;
-// Request.url.full := AIdHTTP.url.GetFullURI;
-// Request.url.protocol := AIdHTTP.url.protocol;
-// Request.url.pathname := AIdHTTP.url.Path;
-// Request.url.port := StrToIntDef(AIdHTTP.url.port, 0);
-// Request.url.search := AIdHTTP.url.Params;
-// Request.url.raw := AIdHTTP.url.Document;
-//
-// for I := 0 to pred(AIdHTTP.Request.CustomHeaders.Count) do
-// Request.headers := Request.headers + ', ' + AIdHTTP.Request.CustomHeaders.Strings[I];
-//
-// if not Request.headers.isEmpty then
-// Request.headers := Request.headers.Remove(1, 1);
-// end;
-//
-// procedure TContext.FillResponse;
-// begin
-// Response := TResponse.Create;
-// Response.finished := True;
-// Response.headers_sent := FIdHTTP.Response.CustomHeaders.Count > 0;
-// Response.status_code := FIdHTTP.ResponseCode;
-// end;
+{ TIdHTTPServer_Helper }
+
+procedure TIdHTTPServer_Helper.ProcessRequest(AContext: TIdContext; ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo;
+  ACallback: THandleRequestCallback);
+begin
+  try
+    PreProcessRequest(AContext, ARequestInfo);
+    try
+      ACallback(AContext, ARequestInfo, AResponseInfo);
+    except
+      on E: Exception do
+        TElasticAPM4D.AddError(E);
+    end;
+  finally
+    PostProcessRequest(AContext, ARequestInfo, AResponseInfo);
+  end;
+end;
+
+{ TIdHTTPServer_Helper }
+
+procedure TIdHTTPServer_Helper.PreProcessRequest(AContext: TIdContext; ARequestInfo: TIdHTTPRequestInfo);
+begin
+    if TElasticAPM4D.IsRecording then
+    begin
+    if ARequestInfo.RawHeaders.Values['X-Correlation-ID'] <> '' then
+      TElasticAPM4D.StartTransaction('http', ARequestInfo.Document, ARequestInfo.RawHeaders.Values['X-Correlation-ID'])
+    else
+      TElasticAPM4D.StartTransaction('http', ARequestInfo.Document);
+
+    if ARequestInfo.RawHeaders.Values['Traceparent'] <> '' then
+      TElasticAPM4D.HeaderValue := ARequestInfo.RawHeaders.Values['Traceparent'];
+  end;
+end;
+
+procedure TIdHTTPServer_Helper.PostProcessRequest(AContext: TIdContext; ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo);
+var
+  i: Integer;
+      begin
+  if TElasticAPM4D.ExistsTransaction then
+  begin
+    if TElasticAPM4D.ExistsError() or // always store errors
+      (TElasticAPM4D.CurrentTransaction.GetCurrentDuration() >= 1 * 1000) or // store slow calls (1s)
+      (ARequestInfo.RawHeaders.Values['Traceparent'] <> '') or (ARequestInfo.RawHeaders.Values['X-Correlation-ID'] <> '') or // store external trace request
+      (TElasticAPM4D.TransactionSampleRate >= 1) or (Random(100) <= TElasticAPM4D.TransactionSampleRate * 100) // store limited % of calls
+    then
+      // store details only when not discarded (to reduce overhead of small and not-recorded calls)
+      with TElasticAPM4D.CurrentTransaction do
+      begin
+        // request handling
+        Context.Request.url.Hostname := ARequestInfo.Host;
+        Context.Request.url.Full     := ARequestInfo.URI;
+        Context.Request.url.Protocol := 'http'; // ARequestInfo.Version; // AIdHTTP.url.protocol;
+        Context.Request.url.Pathname := ARequestInfo.Document;
+        Context.Request.url.port     := AContext.Binding.port;
+        Context.Request.url.Search   := ARequestInfo.Params.Text;
+        Context.Request.url.Raw      := ARequestInfo.RawHTTPCommand;
+        Context.Request.Method       := HTTPRequestStrings[Ord(ARequestInfo.CommandType)];
+        Context.Request.Http_version := ARequestInfo.Version;
+        // Context.Request.Socket.Encrypted := TODO
+        Context.Request.Socket.Remote_address := ARequestInfo.RemoteIP;
+
+        Context.Page.Referer := ARequestInfo.Referer;
+        Context.Page.url     := ARequestInfo.URI;
+
+        if TElasticAPM4D.IsCaptureBody and (ARequestInfo.PostStream <> nil) then
+          with TStreamReader.Create(ARequestInfo.PostStream) do
+            try
+              Context.Request.Body := ReadToEnd();
+            finally
+              Free;
+            end;
+
+        if TElasticAPM4D.IsCaptureHeaders then
+        begin
+          for i := 0 to ARequestInfo.RawHeaders.Count - 1 do
+            Context.Request.Headers.AddOrSetValue(ARequestInfo.RawHeaders.Names[i], ARequestInfo.RawHeaders.ValueFromIndex[i]);
+          for i := 0 to ARequestInfo.Cookies.Count - 1 do
+            Context.Request.Cookies.AddOrSetValue(ARequestInfo.Cookies.Cookies[i].CookieName, ARequestInfo.Cookies[i].CookieText);
+        end;
+
+        // response handling
+          Context.Response.finished     := True;
+          Context.Response.headers_sent := AResponseInfo.CustomHeaders.Count > 0;
+          Context.Response.status_code  := AResponseInfo.ResponseNo;
+
+          if TElasticAPM4D.IsCaptureHeaders then
+          begin
+            for i := 0 to AResponseInfo.RawHeaders.Count - 1 do
+              Context.Response.Headers.AddOrSetValue(AResponseInfo.RawHeaders.Names[i], AResponseInfo.RawHeaders.ValueFromIndex[i]);
+          end;
+
+        TElasticAPM4D.EndTransaction();
+        end
+      else
+        TElasticAPM4D.ClearTransaction();
+  end;
+end;
 
 { TIdHttpAPM }
 
@@ -233,5 +261,9 @@ begin
       ElasticAPM4D.Helpers.EndSpan(Self);
   end;
 end;
+
+initialization
+
+Randomize();
 
 end.
