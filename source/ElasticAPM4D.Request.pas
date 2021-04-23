@@ -51,13 +51,18 @@ type
     FMethod:       string;
     FSocket:       TSocket;
     FUrl:          TURL;
+    function GetHeaders: TKeyValues;
+    function GetCookies: TKeyValues;
   public
     constructor Create;
     destructor Destroy; override;
 
     property Body: string read FBody write FBody;
-    property Cookies: TKeyValues read Fcookies write Fcookies;
-    property Headers: TKeyValues read Fheaders write Fheaders;
+    property Cookies: TKeyValues read GetCookies write Fcookies;
+
+    property Headers: TKeyValues read GetHeaders write Fheaders;
+    function HasHeaders(): Boolean;
+
     property Http_version: string read FHttp_version write FHttp_version;
     property Method: string read FMethod write FMethod;
     property Socket: TSocket read FSocket;
@@ -84,6 +89,25 @@ begin
     Fcookies.Free;
   Fheaders.Free;
   inherited;
+end;
+
+function TRequest.GetCookies: TKeyValues;
+begin
+  if Fcookies = nil then
+    Fcookies := TKeyValues.Create();
+  Result     := Fcookies;
+end;
+
+function TRequest.GetHeaders: TKeyValues;
+begin
+  if Fheaders = nil then
+    Fheaders := TKeyValues.Create();
+  Result     := Fheaders;
+end;
+
+function TRequest.HasHeaders: Boolean;
+begin
+  Result := (Fheaders <> nil) and (Fheaders.Count > 0);
 end;
 
 end.

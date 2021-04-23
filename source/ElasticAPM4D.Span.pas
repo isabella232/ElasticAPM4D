@@ -54,13 +54,14 @@ type
     FService: TService;
     FHttp:    THttp;
     FDb:      TDB;
+    function GetHttp: THttp;
   public
     constructor Create; virtual;
     destructor Destroy; override;
 
     property Service: TService read FService write FService;
     property db: TDB read FDb write FDb;
-    property http: THttp read FHttp write FHttp;
+    property http: THttp read GetHttp write FHttp;
   end;
 
   // https://github.com/elastic/apm-server/blob/v7.12.0/docs/spec/v2/span.json
@@ -137,9 +138,15 @@ destructor TContext.Destroy;
 begin
   FService.Free;
   FDb.Free;
-  if Assigned(FHttp) then
-    FHttp.Free;
+  FHttp.Free;
   inherited;
+end;
+
+function TContext.GetHttp: THttp;
+begin
+  if FHttp = nil then
+    FHttp := THttp.Create;
+  Result  := FHttp;
 end;
 
 { TSpan }

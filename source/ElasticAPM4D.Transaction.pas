@@ -5,7 +5,8 @@ interface
 uses
   System.Classes,
   System.SysUtils,
-  ElasticAPM4D.Context;
+  ElasticAPM4D.Context,
+  ElasticAPM4D.Request;
 
 type
   TSpanCount = class
@@ -38,6 +39,7 @@ type
     Fsampled:    boolean;
     Fparent_id:  string;
     Ftimestamp:  int64;
+    function GetContext: TContext;
   public
     constructor Create;
     destructor Destroy; override;
@@ -54,7 +56,7 @@ type
     property name: string read Fname write Fname;
     property &type: string read Ftype;
     property Span_count: TSpanCount read Fspan_count;
-    property Context: TContext read Fcontext write Fcontext;
+    property Context: TContext read GetContext write Fcontext;
     property Duration: int64 read Fduration write Fduration;
     property &result: string read Fresult write Fresult;
     property Sampled: boolean read Fsampled write Fsampled;
@@ -117,6 +119,13 @@ begin
   Fduration := MilliSecondsBetween(now, FStartDate);
 end;
 
+function TTransaction.GetContext: TContext;
+begin
+  if Fcontext = nil then
+    Fcontext := TContext.Create;
+  Result     := Fcontext;
+end;
+
 function TTransaction.GetCurrentDuration: int64;
 begin
   Result := MilliSecondsBetween(now, FStartDate);
@@ -132,8 +141,17 @@ end;
 
 function TTransaction.ToJsonString: string;
 var
+  LJSONValue, Context: TJSONObject;
+
+  function _GetJson(const aKeys: TKeyValues): TJSONObject;
+  var
   key:                       string;
-  LJSONValue, Context, Tags: TJSONObject;
+  begin
+    Result := TJSONObject.Create;
+    for key in aKeys.Keys do
+      Result.AddPair(key, aKeys[key]);
+  end;
+
 begin
   if (Self.Context = nil) then
     Exit(format(sTransactionJsonId, [TJson.ObjectToJsonString(Self, [joIgnoreEmptyStrings])]));
@@ -143,25 +161,21 @@ begin
     if Self.Context.HasTags() then
     begin
       Context := LJSONValue.FindValue('context') as TJSONObject;
-      Tags    := TJSONObject.Create;
       // manually add dynamic data to the json: using TJsonStringDictionaryConverter, JsonReflectAttribute, JsonConverterAttribute etc didn't work or too cumbersome or resulted in empty strings etc
-      for key in Self.Context.Tags.Keys do
-        Tags.AddPair(key, Self.Context.Tags[key]);
-      Context.AddPair('tags', Tags);
+      Context.AddPair('tags', _GetJson(Self.Context.Tags));
     end;
 
-    if (Self.Context.Request <> nil) and (Self.Context.Request.Headers <> nil) then
+    if Self.Context.HasRequestHeaders() then
     begin
       Context := LJSONValue.FindValue('context.request') as TJSONObject;
-      Tags    := TJSONObject.Create;
-      for key in Self.Context.Request.Headers.Keys do
-        Tags.AddPair(key, Self.Context.Request.Headers[key]);
-      Context.AddPair('headers', Tags);
+      Context.AddPair('headers', _GetJson(Self.Context.Request.Headers));
+      Context.AddPair('cookies', _GetJson(Self.Context.Request.Cookies));
+    end;
 
-      Tags := TJSONObject.Create;
-      for key in Self.Context.Request.Cookies.Keys do
-        Tags.AddPair(key, Self.Context.Request.Cookies[key]);
-      Context.AddPair('cookies', Tags);
+    if Self.Context.HasResponseHeaders() then
+    begin
+      Context := LJSONValue.FindValue('context.response') as TJSONObject;
+      Context.AddPair('headers', _GetJson(Self.Context.Response.Headers));
     end;
 
     Result := format(sTransactionJsonId, [TJson.JsonEncode(LJSONValue)]);
