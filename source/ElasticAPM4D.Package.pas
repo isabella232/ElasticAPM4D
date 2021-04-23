@@ -19,7 +19,8 @@ uses
   Rest.Client,
   Rest.Types,
   System.DateUtils,
-  Rest.HttpClient;
+  Rest.HttpClient,
+  System.IOUtils;
 
 type
   TPackage = class
@@ -79,13 +80,17 @@ type
     FRestClient:             TRestClient;
     FAgentRequest:           TRestRequest;
 
-    function SendToElasticAPM(const AUrl, AHeader, AJson: string): Boolean;
+    FConnected:    Boolean;
+    FNotSendCount: Integer;
+
+    function SendToElasticAPM(const AUrl, AJson: string): Boolean;
   protected
     procedure Execute(); override;
     procedure ProcessPackageList();
     procedure ProcessMetrics();
     procedure ProcessSendList();
     procedure ProcessConfigFetch();
+    procedure ProcessFiles();
 
     procedure TerminatedSet; override;
   public
@@ -102,10 +107,29 @@ type
 implementation
 
 uses
+  WinInet,
   ElasticAPM4D.ndJson,
   ElasticAPM4D.Utils,
   ElasticAPM4D.Resources,
   ElasticAPM4D;
+
+function CheckUrl(const url: string): Boolean;
+var
+  hSession, hfile: hInternet;
+begin
+  Result   := False;
+  hSession := InternetOpen('InetURL:/1.0', INTERNET_OPEN_TYPE_PRECONFIG, nil, nil, 0);
+  if hSession <> nil then
+  begin
+    hfile := InternetOpenUrl(hSession, pchar(url), nil, 0, INTERNET_FLAG_RELOAD, 0);
+    if hfile <> nil then
+    begin
+      Result := True;
+      InternetCloseHandle(hfile);
+    end;
+    InternetCloseHandle(hSession);
+  end;
+end;
 
 { TPackage }
 
@@ -278,9 +302,6 @@ begin
   FEvent        := TEvent.Create();
   FPackageQueue := TThreadList<TPackage>.Create();
   FSendQueue    := TThreadList < TPair < string, string >>.Create();
-
-  FLastFetch  := Now();
-  FLastMetric := Now();
 end;
 
 destructor TSender.Destroy;
@@ -315,6 +336,9 @@ var
 begin
   TThread.NameThreadForDebugging(Self.UnitName + '.' + Self.ClassName);
 
+  if TDirectory.Exists(ExtractFilePath(ParamStr(0)) + 'apm\') and (TDirectory.GetFiles(ExtractFilePath(ParamStr(0)) + 'apm\', '*.ndjson') <> nil) then
+    FNotSendCount := 1;
+
   // event's cannot be sent using TRestClient, using low level TRestHttp instead
   FRestHttp                     := TRESTHTTP.Create();
   FRestHttp.Request.ContentType := 'application/x-ndjson';
@@ -326,8 +350,15 @@ begin
   FAgentRequest.Resource := '/config/v1/agents';
   FAgentRequest.AddParameter('service.name', TConfig.GetAppName, TRESTRequestParameterKind.pkQUERY);
 
+  FConnected := CheckUrl(FAgentRequest.Client.BaseURL);
+
   while not Terminated do
   begin
+    ProcessConfigFetch();
+    ProcessPackageList();
+    ProcessMetrics();
+    ProcessSendList();
+
     duration := MinIntValue([C_MetricInterval - MilliSecondsBetween(Now(), FLastMetric), // metrics
       C_ConfigFetchInterval - MilliSecondsBetween(Now(), FLastFetch), // config
       30 * 1000]); // default 30s
@@ -337,19 +368,30 @@ begin
 
     if Terminated then
       Break;
-
-    ProcessConfigFetch();
-    ProcessPackageList();
-    ProcessMetrics();
-    ProcessSendList();
   end;
 end;
 
-function TSender.SendToElasticAPM(const AUrl, AHeader, AJson: string): Boolean;
+function TSender.SendToElasticAPM(const AUrl, AJson: string): Boolean;
 var
   DataSend, Stream: TStringStream;
+  dir:              string;
+
+  procedure _StoreAsFile(const AJson: string);
+  begin
+    dir := ExtractFilePath(ParamStr(0)) + 'apm\';
+    ForceDirectories(dir);
+    TFile.WriteAllText(dir + 'apm_' + FormatDateTime('yyyy-mm-dd_hh-nn-ss.zzz', Now) + '.ndjson', AJson, TEncoding.UTF8);
+    Inc(FNotSendCount);
+  end;
+
 begin
   Result := False;
+
+  if not FConnected then
+  begin
+    _StoreAsFile(AJson);
+    Exit;
+  end;
 
   DataSend := TStringStream.Create(AJson, TEncoding.UTF8);
   Stream   := TStringStream.Create('');
@@ -357,18 +399,15 @@ begin
 {$MESSAGE warn 'TODO: "Authorization", "ApiKey " + apikey'}
     // TODO: "Authorization", "Bearer " + secretToken
     try
-      FRestHttp.Request.CustomHeaders.Clear();
-      FRestHttp.Request.CustomHeaders.Values[sHEADER_KEY] := AHeader;
       FRestHttp.Post(AUrl, DataSend, Stream);
-
       Result := True;
     except
-{$IFDEF Indy}
-      on e: EIdHTTPProtocolException do
-        OutputDebugString(pchar(e.ClassName + ': ' + e.ErrorCode.ToString + ': ' + e.ErrorMessage));
-{$ENDIF}
       on e: Exception do
-        OutputDebugString(pchar(e.ClassName + ': ' + e.Message));
+      begin
+        FConnected := False;
+        OutputDebugString(pchar('Failed to store events to: ' + AUrl + ', error = ' + e.ClassName + ': ' + e.Message));
+        _StoreAsFile(AJson);
+      end;
     end;
   finally
     DataSend.Free;
@@ -385,8 +424,23 @@ begin
     Exit;
   FLastFetch := Now();
 
+  if not FConnected then
+    FConnected := CheckUrl(FAgentRequest.Client.BaseURL);
+  if not FConnected then
+    Exit;
+
   // http://127.0.0.1:8200/config/v1/agents?service.name=test-service
-  FAgentRequest.Execute;
+  try
+    FAgentRequest.Execute;
+  except
+    on e: Exception do
+    begin
+      FConnected := False;
+      OutputDebugString(pchar('Failed to fetch config from: ' + FAgentRequest.Client.BaseURL + '/' + FAgentRequest.FullResource + ', error = ' + e.ClassName + ': ' +
+        e.Message));
+      Exit;
+    end;
+  end;
 
   Value := 'true'; // default
   FAgentRequest.Response.GetSimpleValue('recording', Value);
@@ -440,8 +494,6 @@ begin
   begin
     if TConfig.GetIsActive then
       TSender.Instance.AddToSendQueue(Package.GetHeader(), Package.GetAsNdJson());
-    // SendToElasticAPM(TConfig.GetUrlElasticAPMEvents, GetHeader, ndJson.Get);
-    // Package.ToSend();
     Package.Free;
   end;
 end;
@@ -450,6 +502,7 @@ procedure TSender.ProcessSendList;
 var
   data: TArray<TPair<string, string>>;
   item: TPair<string, string>;
+  isSend: Boolean;
 begin
   with FSendQueue.LockList() do
     try
@@ -462,9 +515,30 @@ begin
       FSendQueue.UnlockList();
     end;
 
+  isSend := False;
   for item in data do
     if TConfig.GetIsActive then
-      SendToElasticAPM(TConfig.GetUrlElasticAPMEvents(), item.Key, item.Value);
+      isSend := SendToElasticAPM(TConfig.GetUrlElasticAPMEvents(), item.Value);
+
+  if isSend and (FNotSendCount > 0) then
+    ProcessFiles();
+end;
+
+procedure TSender.ProcessFiles;
+var
+  files:   TArray<string>;
+  f, data: string;
+begin
+  files := TDirectory.GetFiles(ExtractFilePath(ParamStr(0)) + 'apm\', '*.ndjson');
+  for f in files do
+  begin
+    data := TFile.ReadAllText(f);
+    TFile.Delete(f);
+    if not SendToElasticAPM(TConfig.GetUrlElasticAPMEvents(), data) then
+      Exit;
+  end;
+
+  FNotSendCount := 0;
 end;
 
 end.
